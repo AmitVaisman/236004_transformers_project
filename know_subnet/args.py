@@ -32,7 +32,7 @@ def get_args(description='arguments for subnet_train.py main func', jupyter=Fals
     parser.add_argument(
         "--targetkg_name",
         type=str,
-        default='large',
+        default='statement.n.01',
         help="the name of the TargetKG to run the experiments on")
     parser.add_argument(
         "--is_csqa",
