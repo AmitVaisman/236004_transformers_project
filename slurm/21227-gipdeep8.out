@@ -1,0 +1,147 @@
+*** SLURM BATCH JOB 'transformers' STARTING ***
+*** Activating environment 236004_transformers_project ***
+CUDA flag: True
+Device: cuda
+All logs will be located in: logs
+This experiment's logs will be located in: logs/logs/-date=2025_06_13_20:59:48
+wandb: Currently logged in as: amitvais777 (amitvais777-technion-israel-institute-of-technology) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: WARNING Using a boolean value for 'reinit' is deprecated. Use 'return_previous' or 'finish_previous' instead.
+wandb: Tracking run with wandb version 0.19.11
+wandb: Run data is saved locally in /home/amit.vaisman/236004_transformers_project/wandb/run-20250613_205949-59mj76d2
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run -date=2025_06_13_20:59:48
+wandb: ⭐️ View project at https://wandb.ai/amitvais777-technion-israel-institute-of-technology/uncategorized
+wandb: 🚀 View run at https://wandb.ai/amitvais777-technion-israel-institute-of-technology/uncategorized/runs/59mj76d2
+Loading data...
+--------------------------------------------------
+Loading WordNet TargetKG...
+Train TargetKG len:  16
+/home/amit.vaisman/miniconda3/envs/236004_transformers_project/lib/python3.10/site-packages/huggingface_hub/file_download.py:943: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Loading WordNet TargetKG done.
+--------------------------------------------------
+Loading WordNet ControlKG...
+Train ControlKG len:  9707
+Val ControlKG len:  50
+Loading WordNet ControlKG done.
+--------------------------------------------------
+Loading wikitext2 as ControlLM...
+Running tokenizer on ControlLM dataset:   0%|          | 0/4358 [00:00<?, ? examples/s]Running tokenizer on ControlLM dataset:  23%|██▎       | 1000/4358 [00:00<00:00, 5279.64 examples/s]Running tokenizer on ControlLM dataset:  46%|████▌     | 2000/4358 [00:00<00:00, 6668.34 examples/s]Running tokenizer on ControlLM dataset:  69%|██████▉   | 3000/4358 [00:00<00:00, 6929.88 examples/s]Running tokenizer on ControlLM dataset:  92%|█████████▏| 4000/4358 [00:00<00:00, 7604.70 examples/s]Running tokenizer on ControlLM dataset: 100%|██████████| 4358/4358 [00:00<00:00, 7226.35 examples/s]
+Running tokenizer on ControlLM dataset:   0%|          | 0/36718 [00:00<?, ? examples/s]Running tokenizer on ControlLM dataset:   3%|▎         | 1000/36718 [00:00<00:04, 8226.32 examples/s]Running tokenizer on ControlLM dataset:   5%|▌         | 2000/36718 [00:00<00:04, 7503.96 examples/s]Running tokenizer on ControlLM dataset:   8%|▊         | 3000/36718 [00:00<00:04, 7929.38 examples/s]Running tokenizer on ControlLM dataset:  11%|█         | 4000/36718 [00:00<00:04, 7932.76 examples/s]Running tokenizer on ControlLM dataset:  14%|█▎        | 5000/36718 [00:00<00:03, 8404.06 examples/s]Running tokenizer on ControlLM dataset:  16%|█▋        | 6000/36718 [00:00<00:03, 8617.44 examples/s]Running tokenizer on ControlLM dataset:  19%|█▉        | 7000/36718 [00:00<00:03, 7934.64 examples/s]Running tokenizer on ControlLM dataset:  22%|██▏       | 8000/36718 [00:01<00:03, 7827.10 examples/s]Running tokenizer on ControlLM dataset:  25%|██▍       | 9000/36718 [00:01<00:03, 7912.35 examples/s]Running tokenizer on ControlLM dataset:  27%|██▋       | 10000/36718 [00:01<00:03, 7979.92 examples/s]Running tokenizer on ControlLM dataset:  30%|██▉       | 11000/36718 [00:01<00:03, 7901.71 examples/s]Running tokenizer on ControlLM dataset:  33%|███▎      | 12000/36718 [00:01<00:03, 8005.78 examples/s]Running tokenizer on ControlLM dataset:  35%|███▌      | 13000/36718 [00:01<00:03, 6077.31 examples/s]Running tokenizer on ControlLM dataset:  38%|███▊      | 14000/36718 [00:01<00:03, 6606.07 examples/s]Running tokenizer on ControlLM dataset:  41%|████      | 15000/36718 [00:01<00:03, 7050.69 examples/s]Running tokenizer on ControlLM dataset:  44%|████▎     | 16000/36718 [00:02<00:02, 7075.98 examples/s]Running tokenizer on ControlLM dataset:  46%|████▋     | 17000/36718 [00:02<00:02, 7241.95 examples/s]Running tokenizer on ControlLM dataset:  49%|████▉     | 18000/36718 [00:02<00:02, 7493.35 examples/s]Running tokenizer on ControlLM dataset:  52%|█████▏    | 19000/36718 [00:02<00:02, 7852.72 examples/s]Running tokenizer on ControlLM dataset:  54%|█████▍    | 20000/36718 [00:02<00:02, 7949.22 examples/s]Running tokenizer on ControlLM dataset:  57%|█████▋    | 21000/36718 [00:02<00:02, 7849.01 examples/s]Running tokenizer on ControlLM dataset:  60%|█████▉    | 22000/36718 [00:02<00:01, 7789.20 examples/s]Running tokenizer on ControlLM dataset:  63%|██████▎   | 23000/36718 [00:03<00:01, 7978.86 examples/s]Running tokenizer on ControlLM dataset:  65%|██████▌   | 24000/36718 [00:03<00:01, 8321.05 examples/s]Running tokenizer on ControlLM dataset:  68%|██████▊   | 25000/36718 [00:03<00:01, 8266.87 examples/s]Running tokenizer on ControlLM dataset:  71%|███████   | 26000/36718 [00:03<00:01, 8181.03 examples/s]Running tokenizer on ControlLM dataset:  74%|███████▎  | 27000/36718 [00:03<00:01, 7877.09 examples/s]Running tokenizer on ControlLM dataset:  76%|███████▋  | 28000/36718 [00:03<00:01, 7674.22 examples/s]Running tokenizer on ControlLM dataset:  79%|███████▉  | 29000/36718 [00:03<00:00, 7996.43 examples/s]Running tokenizer on ControlLM dataset:  82%|████████▏ | 30000/36718 [00:03<00:00, 7994.52 examples/s]Running tokenizer on ControlLM dataset:  84%|████████▍ | 31000/36718 [00:04<00:00, 7556.17 examples/s]Running tokenizer on ControlLM dataset:  87%|████████▋ | 32000/36718 [00:04<00:00, 7495.76 examples/s]Running tokenizer on ControlLM dataset:  90%|████████▉ | 33000/36718 [00:04<00:00, 7446.78 examples/s]Running tokenizer on ControlLM dataset:  93%|█████████▎| 34000/36718 [00:04<00:00, 7480.55 examples/s]Running tokenizer on ControlLM dataset:  95%|█████████▌| 35000/36718 [00:04<00:00, 7704.13 examples/s]Running tokenizer on ControlLM dataset:  98%|█████████▊| 36000/36718 [00:04<00:00, 7554.26 examples/s]Running tokenizer on ControlLM dataset: 100%|██████████| 36718/36718 [00:04<00:00, 7460.34 examples/s]
+Running tokenizer on ControlLM dataset:   0%|          | 0/3760 [00:00<?, ? examples/s]Running tokenizer on ControlLM dataset:  27%|██▋       | 1000/3760 [00:00<00:00, 9096.67 examples/s]Running tokenizer on ControlLM dataset:  53%|█████▎    | 2000/3760 [00:00<00:00, 7896.75 examples/s]Running tokenizer on ControlLM dataset:  80%|███████▉  | 3000/3760 [00:00<00:00, 7600.01 examples/s]Running tokenizer on ControlLM dataset: 100%|██████████| 3760/3760 [00:00<00:00, 7734.44 examples/s]
+Grouping texts in chunks of 512:   0%|          | 0/4358 [00:00<?, ? examples/s]Grouping texts in chunks of 512:  46%|████▌     | 2000/4358 [00:00<00:00, 12882.13 examples/s]Grouping texts in chunks of 512:  92%|█████████▏| 4000/4358 [00:00<00:00, 13478.49 examples/s]Grouping texts in chunks of 512: 100%|██████████| 4358/4358 [00:00<00:00, 13411.31 examples/s]
+Grouping texts in chunks of 512:   0%|          | 0/36718 [00:00<?, ? examples/s]Grouping texts in chunks of 512:   5%|▌         | 2000/36718 [00:00<00:02, 12938.83 examples/s]Grouping texts in chunks of 512:  11%|█         | 4000/36718 [00:00<00:02, 13437.42 examples/s]Grouping texts in chunks of 512:  16%|█▋        | 6000/36718 [00:00<00:02, 14395.91 examples/s]Grouping texts in chunks of 512:  22%|██▏       | 8000/36718 [00:00<00:02, 13480.16 examples/s]Grouping texts in chunks of 512:  27%|██▋       | 10000/36718 [00:00<00:01, 13568.61 examples/s]Grouping texts in chunks of 512:  33%|███▎      | 12000/36718 [00:00<00:01, 13519.89 examples/s]Grouping texts in chunks of 512:  38%|███▊      | 14000/36718 [00:01<00:01, 13506.35 examples/s]Grouping texts in chunks of 512:  44%|████▎     | 16000/36718 [00:01<00:01, 13353.93 examples/s]Grouping texts in chunks of 512:  49%|████▉     | 18000/36718 [00:01<00:01, 13363.53 examples/s]Grouping texts in chunks of 512:  54%|█████▍    | 20000/36718 [00:01<00:01, 13634.31 examples/s]Grouping texts in chunks of 512:  60%|█████▉    | 22000/36718 [00:01<00:01, 13372.47 examples/s]Grouping texts in chunks of 512:  65%|██████▌   | 24000/36718 [00:01<00:00, 13866.67 examples/s]Grouping texts in chunks of 512:  71%|███████   | 26000/36718 [00:01<00:00, 14010.74 examples/s]Grouping texts in chunks of 512:  76%|███████▋  | 28000/36718 [00:02<00:00, 13449.43 examples/s]Grouping texts in chunks of 512:  82%|████████▏ | 30000/36718 [00:02<00:00, 13678.88 examples/s]Grouping texts in chunks of 512:  87%|████████▋ | 32000/36718 [00:02<00:00, 13187.62 examples/s]Grouping texts in chunks of 512:  93%|█████████▎| 34000/36718 [00:02<00:00, 13002.12 examples/s]Grouping texts in chunks of 512:  98%|█████████▊| 36000/36718 [00:02<00:00, 13068.91 examples/s]Grouping texts in chunks of 512: 100%|██████████| 36718/36718 [00:02<00:00, 13092.50 examples/s]
+Grouping texts in chunks of 512:   0%|          | 0/3760 [00:00<?, ? examples/s]Grouping texts in chunks of 512:  53%|█████▎    | 2000/3760 [00:00<00:00, 12630.97 examples/s]Grouping texts in chunks of 512: 100%|██████████| 3760/3760 [00:00<00:00, 12690.33 examples/s]Grouping texts in chunks of 512: 100%|██████████| 3760/3760 [00:00<00:00, 12587.90 examples/s]
+Train ControlLM len: 4656
+Val ControlLM len: 250
+Loading ControlLM done.
+--------------------------------------------------
+Logging dataset for quality check...
+Dataset loading and saving done.
+Prune - (out,in)_w_per_mask: (1, 1)
+Replaced c_attn in h.0.attn
+Replaced c_proj in h.0.attn
+Replaced c_proj in h.0.mlp
+Replaced c_fc in h.0.mlp
+Replaced c_attn in h.1.attn
+Replaced c_proj in h.1.attn
+Replaced c_proj in h.1.mlp
+Replaced c_fc in h.1.mlp
+Replaced c_attn in h.2.attn
+Replaced c_proj in h.2.attn
+Replaced c_proj in h.2.mlp
+Replaced c_fc in h.2.mlp
+Replaced c_attn in h.3.attn
+Replaced c_proj in h.3.attn
+Replaced c_proj in h.3.mlp
+Replaced c_fc in h.3.mlp
+Replaced c_attn in h.4.attn
+Replaced c_proj in h.4.attn
+Replaced c_proj in h.4.mlp
+Replaced c_fc in h.4.mlp
+Replaced c_attn in h.5.attn
+Replaced c_proj in h.5.attn
+Replaced c_proj in h.5.mlp
+Replaced c_fc in h.5.mlp
+Replaced c_attn in h.6.attn
+Replaced c_proj in h.6.attn
+Replaced c_proj in h.6.mlp
+Replaced c_fc in h.6.mlp
+Replaced c_attn in h.7.attn
+Replaced c_proj in h.7.attn
+Replaced c_proj in h.7.mlp
+Replaced c_fc in h.7.mlp
+Replaced c_attn in h.8.attn
+Replaced c_proj in h.8.attn
+Replaced c_proj in h.8.mlp
+Replaced c_fc in h.8.mlp
+Replaced c_attn in h.9.attn
+Replaced c_proj in h.9.attn
+Replaced c_proj in h.9.mlp
+Replaced c_fc in h.9.mlp
+Replaced c_attn in h.10.attn
+Replaced c_proj in h.10.attn
+Replaced c_proj in h.10.mlp
+Replaced c_fc in h.10.mlp
+Replaced c_attn in h.11.attn
+Replaced c_proj in h.11.attn
+Replaced c_proj in h.11.mlp
+Replaced c_fc in h.11.mlp
+lambda_reg_init: 2.0, lambda_reg_final: 3.0
+lr_base: 5e-05, mask_lr_base: 0.2, lr_warmup_frac: 0.1, epochs: 40000, batch_size: 250
+Mask params are trainable:  True
+Model params are frozen:  True
+
+
+eval: : 0it [00:00, ?it/s][A[A
+
+eval: : 1it [00:00,  1.52it/s][A[A
+
+                              [A[A
+
+eval: : 0it [00:00, ?it/s][A[A
+
+                          [A[A
+
+eval: : 0it [00:00, ?it/s][A[A
+
+                          [A[ATraceback (most recent call last):
+  File "/home/amit.vaisman/236004_transformers_project/subnet_train.py", line 242, in <module>
+    main()
+  File "/home/amit.vaisman/236004_transformers_project/subnet_train.py", line 214, in main
+    last_log_dict, model = train_mask(
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/subnet_train_utils.py", line 761, in train_mask
+    log_dict = zeroshot_log_loop(
+  File "/home/amit.vaisman/miniconda3/envs/236004_transformers_project/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/subnet_train_utils.py", line 167, in zeroshot_log_loop
+    metric_dict = test_mask(
+  File "/home/amit.vaisman/miniconda3/envs/236004_transformers_project/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/subnet_train_utils.py", line 89, in test_mask
+    top1_acc, top5_acc, top10_acc, num_masked_tokens = acc_func(logits, labels, mask)
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/metrics.py", line 72, in acc_func
+    masked_prbs = prbs[mask,:]
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 11.96 GiB (GPU 0; 47.44 GiB total capacity; 43.34 GiB already allocated; 1.02 GiB free; 46.10 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+Traceback (most recent call last):
+  File "/home/amit.vaisman/236004_transformers_project/subnet_train.py", line 242, in <module>
+    main()
+  File "/home/amit.vaisman/236004_transformers_project/subnet_train.py", line 214, in main
+    last_log_dict, model = train_mask(
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/subnet_train_utils.py", line 761, in train_mask
+    log_dict = zeroshot_log_loop(
+  File "/home/amit.vaisman/miniconda3/envs/236004_transformers_project/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/subnet_train_utils.py", line 167, in zeroshot_log_loop
+    metric_dict = test_mask(
+  File "/home/amit.vaisman/miniconda3/envs/236004_transformers_project/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/subnet_train_utils.py", line 89, in test_mask
+    top1_acc, top5_acc, top10_acc, num_masked_tokens = acc_func(logits, labels, mask)
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/metrics.py", line 72, in acc_func
+    masked_prbs = prbs[mask,:]
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 11.96 GiB (GPU 0; 47.44 GiB total capacity; 43.34 GiB already allocated; 1.02 GiB free; 46.10 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33m-date=2025_06_13_20:59:48[0m at: [34mhttps://wandb.ai/amitvais777-technion-israel-institute-of-technology/uncategorized/runs/59mj76d2[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20250613_205949-59mj76d2/logs[0m
+*** SLURM BATCH JOB 'transformers' DONE ***

@@ -1,6 +1,7 @@
 import torch.nn as nn
 import tqdm as tqdm
 from typing import List, Type
+import torch
 
 from transformers import (
     GPT2LMHeadModel,
@@ -47,7 +48,7 @@ class GPT2LM(nn.Module, MaskOpsMixin):
             self.config.attn_pdrop=0.0
             self.config.summary_first_dropout=0.0
 
-        self.lm = GPT2LMHeadModel.from_pretrained(lm_name, config=self.config)
+        self.lm = GPT2LMHeadModel.from_pretrained(lm_name, config=self.config, torch_dtype=torch.float16)
 
         self.lm_name = lm_name
         self.num_layers = self.lm.config.n_layer

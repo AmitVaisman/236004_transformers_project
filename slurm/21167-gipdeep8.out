@@ -1,0 +1,9 @@
+*** SLURM BATCH JOB 'diffusion' STARTING ***
+*** Activating environment ddcm_extentions ***
+Traceback (most recent call last):
+  File "/home/amit.vaisman/236004_transformers_project/subnet_train.py", line 30, in <module>
+    from know_subnet.subnet_train_utils import (
+  File "/home/amit.vaisman/236004_transformers_project/know_subnet/subnet_train_utils.py", line 7, in <module>
+    from ignite.handlers.param_scheduler import (
+ModuleNotFoundError: No module named 'ignite'
+*** SLURM BATCH JOB 'diffusion' DONE ***
