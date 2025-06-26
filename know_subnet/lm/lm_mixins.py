@@ -8,13 +8,9 @@ from itertools import product, groupby
 from typing import Dict, List, Optional, Any, Type, Callable, Tuple
 
 from transformers.modeling_utils import Conv1D
-from transformers.models.gpt2.modeling_gpt2 import (
-    GPT2Attention,
-    GPT2MLP,
-    GPT2Block,
-)
+
 from know_subnet.lm.mask import (
-    MaskedHuggingfaceConv1D
+    MaskedLinear
 )
 
 class MaskOpsMixin:
@@ -56,7 +52,7 @@ class MaskOpsMixin:
     def get_combined_masks(models: List[torch.nn.Module]) -> Dict[str, torch.Tensor]:
         """
         Computes the unioned masks from a list of models 
-        (where each have modules of type MaskedHuggingfaceConv1D).
+        (where each have modules of type MaskedLinear).
 
         Parameters:
             models (List[torch.nn.Module]): A list of models fromn which to extract masks.
@@ -70,7 +66,7 @@ class MaskOpsMixin:
             model_masks = {
                 k: v.produce_mask_reshaped() > 0.5
                 for k, v in model.named_modules()
-                if type(v) == MaskedHuggingfaceConv1D
+                if type(v) == MaskedLinear
             }
             mask_dict[model_id] = model_masks
 
@@ -106,7 +102,7 @@ class MaskOpsMixin:
             model_masks = {
                 k: v.produce_mask_reshaped() > 0.5
                 for k, v in model.named_modules()
-                if type(v) == MaskedHuggingfaceConv1D
+                if type(v) == MaskedLinear
             }
             mask_dict[model_id] = model_masks
 
@@ -382,13 +378,13 @@ class SelectivePruningMixin:
             if (top_limit > self.num_layers - 1) or (bottom_limit < 0) or bottom_limit > top_limit:
                 raise ValueError(f"top_limit must be <= {self.num_layers - 1} and bottom_limit >= 0 for {self.lm_name}, got {top_limit} and {bottom_limit}.")
 
-        for lin_type in linear_types_to_mask:
-            if lin_type not in ['c_attn', 'q_attn', 'c_proj', 'c_fc']:
-                raise ValueError("Linear type must be one of ['c_attn', 'q_attn', 'c_proj', 'c_fc'].")
+        # for lin_type in linear_types_to_mask:
+        #     if lin_type not in ['c_attn', 'q_attn', 'c_proj', 'c_fc']:
+        #         raise ValueError("Linear type must be one of ['c_attn', 'q_attn', 'c_proj', 'c_fc'].")
 
-        for mod_type in module_types_to_mask:
-            if mod_type not in [GPT2Attention, GPT2MLP, GPT2Block]:
-                raise ValueError("Module type must be one of [GPT2Attention, GPT2MLP, GPT2Block].")
+        # for mod_type in module_types_to_mask:
+        #     if mod_type not in [GPT2Attention, GPT2MLP, GPT2Block]:
+        #         raise ValueError("Module type must be one of [GPT2Attention, GPT2MLP, GPT2Block].")
 
     def replace_layers_with_masked(
         self, 
@@ -412,8 +408,14 @@ class SelectivePruningMixin:
             parent_types: List[Type[Any]], 
             replacement: Callable[[Any], Any]
         ):
-            for module_name, module in self.lm.transformer.named_modules():
+            print(linear_types)
+            print(parent_types)
+            for module_name, module in self.lm.model.named_modules():
+                # print(module_name, module, type(module))
                 split_name = module_name.split('.')
+                # print("lin_type in linear_types:", lin_type in linear_types)
+                # print("bottom_limit <= int(split_name[1]) <= top_limit", bottom_limit <= int(split_name[1]) <= top_limit)
+                # print("type(module) in parent_types", type(module) in parent_types)
                 for lin_type in linear_types:
                     if hasattr(module, lin_type) \
                         and type(module) in parent_types \
@@ -426,7 +428,7 @@ class SelectivePruningMixin:
         replace_layers(
             linear_types_to_mask, 
             module_types_to_mask, 
-            lambda x: MaskedHuggingfaceConv1D.from_layer(
+            lambda x: MaskedLinear.from_layer(
                 layer=x, 
                 out_w_per_mask=out_w_per_mask, 
                 in_w_per_mask=in_w_per_mask,
@@ -435,21 +437,21 @@ class SelectivePruningMixin:
         )
     
     def set_is_inverse_mask(self, is_inverse_mask: bool = False):
-        """Inverses the mask for all MaskedHuggingfaceConv1D layers."""
+        """Inverses the mask for all MaskedLinear layers."""
         model_modules = self.named_modules()
         for k, v in model_modules:
-            if type(v) == MaskedHuggingfaceConv1D:
+            if type(v) == MaskedLinear:
                 v.mask.is_inverse_mask = is_inverse_mask
                     
     def set_is_bypass_mask(self, is_bypass_mask: bool = False):
-        """Bypasses the mask for all MaskedHuggingfaceConv1D layers."""
+        """Bypasses the mask for all MaskedLinear layers."""
         model_modules = self.named_modules()
         for k, v in model_modules:
-            if type(v) == MaskedHuggingfaceConv1D:
+            if type(v) == MaskedLinear:
                 v.is_bypass_mask = is_bypass_mask
 
     def compute_total_regularizer(self) -> float:
-        """Computes the total regularizer for all MaskedHuggingfaceConv1D layers."""
+        """Computes the total regularizer for all MaskedLinear layers."""
         total, n = 0, 0
         for name, module in self.named_modules():
             if hasattr(module, 'regularizer'):
@@ -468,13 +470,13 @@ class MaskStatsMixin:
     def compute_binary_pct_produced_mask_stats(self) -> Dict[str, float]:
         """
         Compute per-neuron and per-weight sparsity statistics on the mask scores 
-        produced by masked convolutional layers (`MaskedHuggingfaceConv1D`).
+        produced by masked convolutional layers (`MaskedLinear`).
 
         Returns:
             Dict[str, float]: A dictionary containing the computed statistics.
         """
         modules = self.named_modules()
-        mask_modules = {k: v for k, v in modules if type(v) == MaskedHuggingfaceConv1D}
+        mask_modules = {k: v for k, v in modules if type(v) == MaskedLinear}
         stats = {
             '0': 0.0,
             '1': 0.0,
