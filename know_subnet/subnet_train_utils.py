@@ -17,7 +17,7 @@ from know_subnet.metrics import (
     rank_prob_func
 )
 from know_subnet.lm.lm_utils import save_mask_scores
-from know_subnet.lm.gpt2 import GPT2LM
+from know_subnet.lm.qwen import QwenLM
 
 @torch.no_grad()
 def test_mask(
@@ -561,7 +561,7 @@ def initialize_training_components(
     total_warmup_steps =  len(targetkg_train_loader) * args.train_epoch * args.lr_warmup_frac
     lr_scheduler  = torch.optim.lr_scheduler.LinearLR(
         optimizer, start_factor=1e-10, end_factor=1.0, 
-        total_iters=total_warmup_steps, last_epoch=-1, verbose=False)
+        total_iters=total_warmup_steps, last_epoch=-1)
 
     # 5) Setup KL Div Loss
     # NOTE: log_target=False means that 
@@ -589,7 +589,7 @@ def initialize_training_components(
     # 9) Create original model as KL div reference
     full_model = None
     if args.lm.startswith("gpt"):
-        full_model = GPT2LM(
+        full_model = QwenLM(
             use_dropout=False,
             lm_name=args.lm
         )
@@ -644,6 +644,8 @@ def compute_controllm_loss(
         del full_controllm_output
     
     # KL loss
+    print(model)
+    print(full_model)
     controllm_loss = kl_loss(
         input = F.log_softmax(controllm_logits, dim=-1),
         target = F.softmax(full_controllm_logits, dim=-1)

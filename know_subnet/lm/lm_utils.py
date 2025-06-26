@@ -9,9 +9,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoConfig
 
-from know_subnet.lm.gpt2 import (
-    GPT2LM,
-    SelectivePrunedGPT2LM
+from know_subnet.lm.qwen import (
+    QwenLM,
+    SelectivePrunedQwenLM
 )
 from know_subnet.utils import str2moduleclass
 
@@ -145,6 +145,7 @@ def load_from_checkpoint(
         config["bottom_limit"] = -1
 
     if config["lm"].startswith('gpt'):
+        assert False # change to qwen
         model = SelectivePrunedGPT2LM(
             out_w_per_mask,
             in_w_per_mask, 
@@ -186,13 +187,13 @@ def load_lm(args: argparse.Namespace) -> nn.Module:
         if args.lm.startswith('gpt2'):
             out_w_per_mask, in_w_per_mask = args.params
             print("Prune - (out,in)_w_per_mask: {}".format((out_w_per_mask, in_w_per_mask)))
-            model = SelectivePrunedGPT2LM(
+            model = SelectivePrunedQwenLM(
                 out_w_per_mask,
                 in_w_per_mask, 
-                lm_name=args.lm,
+                lm_name='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B',
                 top_k_layers=args.top_k_layers,
-                linear_types_to_mask=args.linear_types_to_mask, 
-                module_types_to_mask=args.module_types_to_mask,
+                # linear_types_to_mask=args.linear_types_to_mask, 
+                # module_types_to_mask=args.module_types_to_mask,
                 use_dropout=args.use_dropout,
                 initial_mask_p=args.initial_mask_p,
                 top_limit=args.top_limit,
@@ -203,9 +204,9 @@ def load_lm(args: argparse.Namespace) -> nn.Module:
              raise ValueError("Could not find matching model name for {}, only GPT2 family models are supported.".format(args.lm))
     else:
         if args.lm.startswith('gpt2'):
-            model = GPT2LM(
+            model = QwenLM(
                 use_dropout=args.use_dropout,
-                lm_name=args.lm
+                lm_name='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B'
             )
         else:
             raise ValueError("Could not find matching model name for {}, only GPT2 family models are supported.".format(args.lm))
