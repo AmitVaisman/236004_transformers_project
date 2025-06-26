@@ -12,11 +12,13 @@ from know_subnet.lm.lm_utils import *
 from know_subnet.lm.mask import *
 from know_subnet.data.wordnet_dataloader import load_wordnet_targetkg, load_wordnet_controlkg
 from know_subnet.data.conceptnet_dataloader import load_conceptnet
-from know_subnet.data.wikitext_dataloader import (
-    gpt2_infer_wiki_ppl, 
-    load_wikitext2_test_dataloader
-)
+# from know_subnet.data.wikitext_dataloader import (
+#     gpt2_infer_wiki_ppl, 
+#     load_wikitext2_test_dataloader
+# )
 from know_subnet.subnet_train_utils import test_mask
+
+from know_subnet.lm.qwen import QwenLM
 
 
 def get_config(exper_dir):
@@ -335,9 +337,7 @@ def test_subnet_post_train():
 
     ############################################################################
     # 3) Setting up the full model for delta calculations
-    if not config["lm"].startswith("gpt"):
-        raise NotImplementedError("Only GPT2 model family is supported for now.")
-    full_model = GPT2LM(
+    full_model = QwenLM(
         use_dropout=False,
         lm_name=config["lm"]
     )

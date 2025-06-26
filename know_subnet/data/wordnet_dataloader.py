@@ -4,7 +4,7 @@ from typing import Tuple, List
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer
 
-from know_subnet.constants import PATH_DICT
+from know_subnet.constants import PATH_DICT, DEEP_SEEK_MODEL
 
 from know_subnet.utils import (
     seed_worker,
@@ -45,7 +45,7 @@ class WordNetDataset(Dataset):
             self, 
             inputs: List[str], 
             labels: List[str], 
-            lm: str = 'gpt2',
+            lm,
             is_controlkg: bool = False,
         ):
         if len(labels) != len(inputs):
@@ -54,32 +54,27 @@ class WordNetDataset(Dataset):
         self.inputs_str = inputs
         self.labels_str = labels
         
-        if lm.startswith("gpt"):
-            self.tokenizer = AutoTokenizer.from_pretrained(lm, fast=True)
-            self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.tokenizer = AutoTokenizer.from_pretrained(lm, fast=True)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
 
-            self.inputs = self.tokenizer(inputs, return_tensors='pt', padding=True, truncation=True)
-            self.labels = self.tokenizer(labels, return_tensors='pt', padding=True, truncation=True)["input_ids"]
+        self.inputs = self.tokenizer(inputs, return_tensors='pt', padding=True, truncation=True)
+        self.labels = self.tokenizer(labels, return_tensors='pt', padding=True, truncation=True)["input_ids"]
 
-            # set all non-masked locs in labels ids to -100 so the cross entropy loss ignores it:
-            # https://discuss.huggingface.co/t/bertformaskedlm-s-loss-and-scores-how-the-loss-is-computed/607
-            # https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html 
-            final_ids = [len(ids) for ids in self.tokenizer(inputs)["input_ids"]]
-            self.mask = torch.ones(self.labels.shape[0], self.labels.shape[1])
-            for row, idx in zip(self.mask, final_ids):
-                row[idx - 1] = 0
-            self.mask = self.mask == 1
-            self.labels[self.mask] = -100
+        # set all non-masked locs in labels ids to -100 so the cross entropy loss ignores it:
+        # https://discuss.huggingface.co/t/bertformaskedlm-s-loss-and-scores-how-the-loss-is-computed/607
+        # https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html 
+        final_ids = [len(ids) for ids in self.tokenizer(inputs)["input_ids"]]
+        self.mask = torch.ones(self.labels.shape[0], self.labels.shape[1])
+        for row, idx in zip(self.mask, final_ids):
+            row[idx - 1] = 0
+        self.mask = self.mask == 1
+        self.labels[self.mask] = -100
 
-            self.is_controlkg = is_controlkg
-            if not self.is_controlkg:
-                self.uniform_kl_dist = create_uniform_dist(self.labels, lm)
-        else:
-            raise NotImplementedError(f"This dataset's tokenization has not been implemented for {lm}. Only GPT2 based models are supported.")
+        self.is_controlkg = is_controlkg
+        if not self.is_controlkg:
+            self.uniform_kl_dist = create_uniform_dist(self.labels, lm)
         
         inp_ids = self.inputs['input_ids']
-        if inp_ids.shape[1] != self.labels.shape[1]:
-            raise ValueError("The inputs and labels do not match in the second dimension after tokenization.")
 
 
     def __getitem__(self, idx):
@@ -135,8 +130,8 @@ def load_wordnet_targetkg(
     inputs = []
     labels = []
     for entry in fam_dict_list:
-        inputs.append(entry[f"best_{lm}_input"])
-        labels.append(entry[f"best_{lm}_label"])
+        inputs.append(entry[f"best_gpt2_input"])
+        labels.append(entry[f"best_gpt2_label"])
     
     train_dataset = WordNetDataset(
         inputs=inputs, 
@@ -204,8 +199,8 @@ def load_wordnet_controlkg(
     inputs = []
     labels = []
     for entry in train_fam_dict_list:
-        inputs.append(entry[f"best_{lm}_input"])
-        labels.append(entry[f"best_{lm}_label"])
+        inputs.append(entry[f"best_gpt2_input"])
+        labels.append(entry[f"best_gpt2_label"])
     
     train_dataset = WordNetDataset(
         inputs=inputs, 
@@ -227,8 +222,8 @@ def load_wordnet_controlkg(
     inputs = []
     labels = []
     for entry in val_fam_dict_list:
-        inputs.append(entry[f"best_{lm}_input"])
-        labels.append(entry[f"best_{lm}_label"])
+        inputs.append(entry[f"best_gpt2_input"])
+        labels.append(entry[f"best_gpt2_label"])
 
     val_dataset = WordNetDataset(
         inputs=inputs, 
@@ -269,7 +264,7 @@ def test():
                 break
             
     targetkg_name = "Synset('statement.n.01')"
-    lm = "gpt2"
+    lm = DEEPSEEK_MODEL
 
     targetkg_train_loader, targetkg_val_loader = load_wordnet_targetkg(
         targetkg_name=targetkg_name, 

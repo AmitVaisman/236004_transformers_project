@@ -32,6 +32,10 @@ from know_subnet.subnet_train_utils import (
     zeroshot_log_loop
 )
 
+import warnings
+warnings.simplefilter("always")
+warnings.filterwarnings("error")
+
 def data_loading(args, accelerator=None):
     if args.verbose:
         accelerator.print("Loading data...")

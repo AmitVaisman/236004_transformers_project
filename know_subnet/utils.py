@@ -10,11 +10,6 @@ import transformers
 from collections import OrderedDict
 from datetime import datetime
 
-from transformers.models.gpt2.modeling_gpt2 import (
-    GPT2Attention,
-    GPT2MLP,
-    GPT2Block,
-)
 
 DIR_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -243,18 +238,15 @@ def str2tuple(v):
 
 def str2moduleclass(v):
     module_class_dict = {
-        'gpt2attention': GPT2Attention,
-        'gpt2mlp': GPT2MLP, 
-        'gpt2block': GPT2Block,
+        'Qwen2Attention' : Qwen2Attention, 
+        'Qwen2MLP' : Qwen2MLP,
+        'Qwen2DecoderLayer' : Qwen2DecoderLayer
     }
     v = v.lower()
-    try: 
-        module_class_list = []
-        for item in v.split(' '):
-            module_class_list.append(module_class_dict[item])
-        return module_class_list
-    except:
-        raise argparse.ArgumentTypeError('Expected valid GPT2 module class names.')
+    module_class_list = []
+    for item in v.split(' '):
+        module_class_list.append(module_class_dict[item])
+    return module_class_list
 
 def shuffle_dict(input_dict):
     input_dict = OrderedDict(input_dict)

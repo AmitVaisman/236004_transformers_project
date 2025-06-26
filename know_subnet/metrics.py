@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from know_subnet.lm.gpt2 import SelectivePrunedGPT2LM, SelectivePrunedGPT2QAModel
+from know_subnet.lm.qwen import SelectivePrunedQwenLM
 from typing import Any, Dict, Union
 
 # Define cross-entropy loss without reduction for per-token losses.
@@ -29,14 +29,11 @@ def cse_batch_loss_func(logits: torch.Tensor, labels: torch.Tensor, mask: torch.
     Compute the cross entropy loss *without reduction* for causal language models, 
     shifting logits and labels for GPT-like models.
     """
-    if lm.startswith('gpt'):
-        # Shift logits and labels: logits predict the next token, so remove the last timestep,
-        # while labels and mask are shifted left to exclude the first token.
-        logits = logits[..., :-1, :].contiguous()
-        labels = labels[..., 1:].contiguous()
-        mask = mask[..., 1:].contiguous()
-    else:
-        raise NotImplementedError(f"This loss has not been implemented for {lm}. Only GPT2-based models are supported.")
+    # Shift logits and labels: logits predict the next token, so remove the last timestep,
+    # while labels and mask are shifted left to exclude the first token.
+    logits = logits[..., :-1, :].contiguous()
+    labels = labels[..., 1:].contiguous()
+    mask = mask[..., 1:].contiguous()
 
     assert logits.size(0) == labels.size(0), "Batch size mismatch between logits and labels."
     logits_flat = logits.view(-1, logits.size(-1))
@@ -173,7 +170,7 @@ def rank_prob_func(logits: torch.Tensor, label_ids: torch.Tensor, mask: torch.Te
 #     return mask_dist_list
 
 @torch.no_grad()
-def sparsity_func(model: Union[SelectivePrunedGPT2LM, SelectivePrunedGPT2QAModel], lm_name: str, non_mask_counts: bool = False) -> Dict[str, Any]:
+def sparsity_func(model: Union[SelectivePrunedQwenLM], lm_name: str, non_mask_counts: bool = False) -> Dict[str, Any]:
     """
     Compute various sparsity statistics for the given model.
     
@@ -213,18 +210,15 @@ def sparsity_func(model: Union[SelectivePrunedGPT2LM, SelectivePrunedGPT2QAModel
         layer_sparsity_stats.append(layer_dict)
 
         # 4) q k v specific + overall attention head sparsities
-        if lm_name.startswith("gpt"):
-            for head in range(heads):
-                q, k, v = None, None, None
-                att_head_sparsity_stats.append({
-                    'layer': layer + 1,
-                    'head': head + 1,
-                    'q': q,
-                    'k': k,
-                    'v': v,
-                })
-        else:
-            raise NotImplementedError(f"Only GPT2 based models are supported.")
+        for head in range(heads):
+            q, k, v = None, None, None
+            att_head_sparsity_stats.append({
+                'layer': layer + 1,
+                'head': head + 1,
+                'q': q,
+                'k': k,
+                'v': v,
+            })
 
     valid_att_list = [layer_dict['att_sparsity'] for layer_dict in layer_sparsity_stats if layer_dict['att_sparsity'] is not None]
     avg_attention = sum(valid_att_list) / len(valid_att_list)
