@@ -19,9 +19,9 @@
 #
 NUM_NODES=2
 NUM_CORES=2
-NUM_GPUS=4
+NUM_GPUS=1
 JOB_NAME="transformers"
-MAIL_USER="amit.vaisman@campus.technion.ac.il"
+MAIL_USER="amitf@campus.technion.ac.il"
 MAIL_TYPE=END # Valid values are NONE, BEGIN, END, FAIL, REQUEUE, ALL
 
 ###

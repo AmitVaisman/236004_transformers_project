@@ -19,6 +19,11 @@ from know_subnet.metrics import (
 from know_subnet.lm.lm_utils import save_mask_scores
 from know_subnet.lm.gpt2 import GPT2LM
 
+# def print_free_gpu_memory(device):
+#     allocated = torch.cuda.memory_allocated(device) / 1024**2
+#     reserved = torch.cuda.memory_reserved(device) / 1024**2
+#     print(f"[GPU] Allocated: {allocated:.2f} MB | Reserved: {reserved:.2f} MB")
+
 @torch.no_grad()
 def test_mask(
         model, 
@@ -85,6 +90,7 @@ def test_mask(
             labels = labels[..., 1:].contiguous()
             mask = mask[..., 1:].contiguous()
         
+        print_free_gpu_memory(device=accelerator.device)
         # Compute metrics.
         top1_acc, top5_acc, top10_acc, num_masked_tokens = acc_func(logits, labels, mask)
         hf_perp = hf_perp_func(loss)
