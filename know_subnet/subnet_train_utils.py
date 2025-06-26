@@ -808,8 +808,13 @@ def train_mask(
             attention_mask = batch['attention_mask']
             labels = batch['labels']
             mask = labels != -100
+            
+            print(input_ids, labels, mask)
+            
             uniform_kl_dist = batch['uniform_kl']
             batch_size = input_ids.shape[0]
+
+            assert False
 
             ####################################################################
             # 1) Expression Loss

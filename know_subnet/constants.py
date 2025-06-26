@@ -44,6 +44,7 @@ PATH_DICT = {
     "conceptnet_targetkg": os.path.join(DIR_PATH, "data", "conceptnet_lama", "targetkg", "best_format"),
     #
     "csqa_dir": os.path.join(DIR_PATH, "data", "csqa"),
+    "ours_targetkg" : os.path.join(DIR_PATH, "data", "our_data")
 }
 
 CONCEPTNET_REL_VERBALIZATIONS = {
