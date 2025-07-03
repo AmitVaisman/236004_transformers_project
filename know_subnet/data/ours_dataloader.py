@@ -38,6 +38,7 @@ class OursDataset(Dataset):
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.inputs = self.tokenizer(text, return_tensors='pt', padding=True, truncation=True)
+        print()
         # self.labels = self.tokenizer(labels, return_tensors='pt', padding=True, truncation=True)["input_ids"]
 
         # set all non-masked locs in labels ids to -100 so the cross entropy loss ignores it:

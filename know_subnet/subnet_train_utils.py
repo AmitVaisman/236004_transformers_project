@@ -270,7 +270,7 @@ def validation_log_loop(
 
     # 1) Define the three validation passes.
     loaders_and_prefixes = [
-        ("our_val_loader-",    our_val_loader, True),
+        ("targetkg-",    our_val_loader, True),
         # ("controllm-",   controllm_val_loader, False),
         # ("controlkg-",   controlkg_val_loader, False),
     ]
@@ -812,6 +812,7 @@ def train_mask(
 
         for batch in train_loop:
             accelerator.print("_" * 80)
+            accelerator.print(f"epoch = {epoch}, step = {step}")
             model.train()
             optimizer.zero_grad()
 
@@ -978,21 +979,22 @@ def train_mask(
             if not do_eval:
                 accelerator.log(train_log_dict)
             else:
-                log_dict = validation_log_loop(
-                    args=args,
-                    model=model, 
-                    log_dict=train_log_dict,
-                    # targetkg_val_loader=targetkg_val_loader,
-                    # controllm_val_loader=controllm_val_loader,
-                    # controlkg_val_loader=controlkg_val_loader,
-                    our_val_loader=our_val_loader,
-                    accelerator=accelerator
-                )
-                accelerator.log(log_dict)
-                # checkpointing
-                # NOTE: keep in mind that step=epoch because our dataset is small so if it gets bigger you will have to change this statement
-                if step % args.save_checkpoint_every == 0:
-                    save_mask_scores(model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
+                pass
+                # log_dict = validation_log_loop(
+                #     args=args,
+                #     model=model, 
+                #     log_dict=train_log_dict,
+                #     # targetkg_val_loader=targetkg_val_loader,
+                #     # controllm_val_loader=controllm_val_loader,
+                #     # controlkg_val_loader=controlkg_val_loader,
+                #     our_val_loader=our_val_loader,
+                #     accelerator=accelerator
+                # )
+                # accelerator.log(log_dict)
+                # # checkpointing
+                # # NOTE: keep in mind that step=epoch because our dataset is small so if it gets bigger you will have to change this statement
+                # if step % args.save_checkpoint_every == 0:
+                #     save_mask_scores(model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
 
     ############################################################################
     # 6) Final logging and checkpointing before finish
