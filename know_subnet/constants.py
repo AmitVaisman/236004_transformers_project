@@ -1,23 +1,23 @@
 import os
-DIR_PATH = os.path.dirname(os.path.abspath(__file__))
-
-from transformers.models.gpt2.modeling_gpt2 import (
-    GPT2Attention,
-    GPT2MLP,
-    GPT2Block,
-)
 
 from transformers.models.qwen2.modeling_qwen2 import (
-    Qwen2Attention, Qwen2MLP, Qwen2DecoderLayer
+    Qwen2Attention,
+    Qwen2MLP,
+    Qwen2DecoderLayer,
 )
+
+
+DIR_PATH = os.path.dirname(os.path.abspath(__file__))
+
+DEEP_SEEK_MODEL = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B'
 
 HYPERPARAMS = {
     "seed": 42,
     "learning_rate": 0.00005,
     "mask_learning_rate": 0.2,
-    "train_batch_size": 25, 
-    "eval_batch_size": 25,
-    "train_epoch": 40000,
+    "train_batch_size": 5, 
+    "eval_batch_size": 5,
+    "train_epoch": 10,
     "lr_warmup_frac": 0.1,
     "log_step": 100,
     "save_checkpoint_every" : 200,
@@ -30,10 +30,9 @@ HYPERPARAMS = {
 CONSTANTS = {
     "vowels": ["a", "e", "i", "o", "u"],
     "train_ratio": 0.9,
-    "gpt2_linear_types_to_mask": ['c_attn', 'q_attn', 'c_proj', 'c_fc'],
-    "gpt2_module_types_to_mask": [GPT2Attention, GPT2MLP, GPT2Block],
-    "qwen_linear_types_to_mask": ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'up_proj', 'gate_proj', 'down_proj'],
-    "qwen_module_types_to_mask": [Qwen2Attention, Qwen2MLP, Qwen2DecoderLayer]  # or DeepseekAttention etc.
+    "qwen_linear_types_to_mask": ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj'],
+    "qwen_module_types_to_mask": [Qwen2Attention, Qwen2MLP, Qwen2DecoderLayer]
+    
 }
 
 PATH_DICT = {
@@ -45,6 +44,7 @@ PATH_DICT = {
     "conceptnet_targetkg": os.path.join(DIR_PATH, "data", "conceptnet_lama", "targetkg", "best_format"),
     #
     "csqa_dir": os.path.join(DIR_PATH, "data", "csqa"),
+    "ours_targetkg" : os.path.join(DIR_PATH, "data", "our_data")
 }
 
 CONCEPTNET_REL_VERBALIZATIONS = {

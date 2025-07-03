@@ -32,11 +32,9 @@ from know_subnet.subnet_train_utils import (
     zeroshot_log_loop
 )
 
-# import torch
-# def print_free_gpu_memory(device):
-#     allocated = torch.cuda.memory_allocated(device) / 1024**2
-#     reserved = torch.cuda.memory_reserved(device) / 1024**2
-#     print(f"[GPU] Allocated: {allocated:.2f} MB | Reserved: {reserved:.2f} MB")
+import warnings
+warnings.simplefilter("always")
+warnings.filterwarnings("error")
 
 def data_loading(args, accelerator=None):
     if args.verbose:

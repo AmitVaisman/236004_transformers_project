@@ -7,6 +7,8 @@ from know_subnet.constants import (
 )
 from know_subnet.utils import str2bool, str2tuple, str2moduleclass
 
+from know_subnet.constants import PATH_DICT, DEEP_SEEK_MODEL
+
 def get_args(description='arguments for subnet_train.py main func', jupyter=False):
     parser = argparse.ArgumentParser(description=description)
 
@@ -47,8 +49,7 @@ def get_args(description='arguments for subnet_train.py main func', jupyter=Fals
     parser.add_argument(
         "--lm",
         type=str,
-        # default="gpt2",
-        default="qwen",
+        default=DEEP_SEEK_MODEL,
         help="name of the language model")
     parser.add_argument(
         "--use_dropout",
@@ -286,19 +287,9 @@ def get_args(description='arguments for subnet_train.py main func', jupyter=Fals
 
     # Setting default masked layer types as all types possible if none are given:
     if len(args.linear_types_to_mask) == 0:
-        if args.lm.startswith("gpt2"):
-            args.linear_types_to_mask = CONSTANTS["gpt2_linear_types_to_mask"]
-        if args.lm.startswith("qwen"):
-            args.linear_types_to_mask = CONSTANTS["qwen_linear_types_to_mask"]
-        else:
-            raise ValueError("No default linear types to mask for the given language model.")    
+        args.linear_types_to_mask = CONSTANTS["qwen_linear_types_to_mask"]
     if len(args.module_types_to_mask) == 0:
-        if args.lm.startswith("gpt2"):
-            args.module_types_to_mask = CONSTANTS["gpt2_module_types_to_mask"]
-        if args.lm.startswith("qwen"):
-            args.module_types_to_mask = CONSTANTS["qwen_module_types_to_mask"]
-        else:
-            raise ValueError("No default module types to mask for the given language model.")
+        args.module_types_to_mask = CONSTANTS["qwen_module_types_to_mask"]
 
     # TODO: change to "weight" or "neuron" since larger models may have diff dim
     #       currently handled under the hood in mask "from_layer" in mask.py

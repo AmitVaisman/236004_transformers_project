@@ -5,6 +5,8 @@ import torch
 from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer, default_data_collator, Qwen2Tokenizer
 import datasets
+from know_subnet.constants import DEEP_SEEK_MODEL
+
 datasets.disable_caching()
 
 
@@ -318,7 +320,7 @@ def test():
             if cnt == 10:
                 break
     
-    lm = "gpt2"
+    lm = DEEP_SEEK_MODEL
     
     train_dataloader, val_dataloader = load_wikitext2_dataloader(
         lm_name=lm,

@@ -408,8 +408,6 @@ class SelectivePruningMixin:
             parent_types: List[Type[Any]], 
             replacement: Callable[[Any], Any]
         ):
-            print(linear_types)
-            print(parent_types)
             for module_name, module in self.lm.model.named_modules():
                 # print(module_name, module, type(module))
                 split_name = module_name.split('.')
@@ -612,8 +610,8 @@ class MaskStatsMixin:
             Tuple[Optional[float], Optional[float], Optional[float]]:
                 A tuple containing the sparsity fractions for query, key, and value masks.
         """
-        layer = self.lm.transformer.h[layer_num].attn
-        num_heads, embed_dim = self.lm.transformer.config.num_attention_heads, self.lm.transformer.config.hidden_size
+        layer = self.lm.model.layers[layer_num].self_attn
+        num_heads, embed_dim = self.lm.num_heads, self.lm.config.hidden_size
         head_dim = embed_dim // num_heads
         target_mask_value = 1.0 if density else 0.0
         
@@ -669,25 +667,38 @@ class MaskStatsMixin:
         Returns:
             Optional[float]: The computed sparsity, or None if no masks are available.
         """
-        layer = self.lm.transformer.h[layer_num]
-        c_attn_mask = self.conditional_produce_mask(layer.attn.c_attn, non_mask_counts, density=density)
-        c_proj_mask = self.conditional_produce_mask(layer.attn.c_proj, non_mask_counts, density=density)
+        layer = self.lm.model.layers[layer_num]
+
+        q_proj_mask = self.conditional_produce_mask(layer.self_attn.q_proj, non_mask_counts, density=density)
+        k_proj_mask = self.conditional_produce_mask(layer.self_attn.k_proj, non_mask_counts, density=density)
+        v_proj_mask = self.conditional_produce_mask(layer.self_attn.v_proj, non_mask_counts, density=density)
+        o_proj_mask = self.conditional_produce_mask(layer.self_attn.o_proj, non_mask_counts, density=density)
+        
         target_mask_value = 1.0 if density else 0.0
         
-        if c_attn_mask is None and c_proj_mask is None:
+        if q_proj_mask is None and k_proj_mask is None and v_proj_mask is None and o_proj_mask is None:
             return None
         else:
             sparsity = 0.0
             total = 0.0
-            if c_attn_mask is not None:
-                sparsity += torch.sum(c_attn_mask == target_mask_value).item()
-                total += c_attn_mask.numel()
-            if c_proj_mask is not None:
-                sparsity += torch.sum(c_proj_mask == target_mask_value).item()
-                total += c_proj_mask.numel()
-            sparsity = sparsity / total
+            
+            if q_proj_mask is not None:
+                sparsity += torch.sum(q_proj_mask == target_mask_value).item()
+                total += q_proj_mask.numel()
+                
+            if k_proj_mask is not None:
+                sparsity += torch.sum(k_proj_mask == target_mask_value).item()
+                total += k_proj_mask.numel()
 
-            return sparsity
+            if v_proj_mask is not None:
+                sparsity += torch.sum(v_proj_mask == target_mask_value).item()
+                total += v_proj_mask.numel()
+
+            if o_proj_mask is not None:
+                sparsity += torch.sum(o_proj_mask == target_mask_value).item()
+                total += o_proj_mask.numel()
+                
+            return sparsity / total
                 
     @torch.no_grad()
     def get_mask_sparsity_mlp(self, layer_num: int, non_mask_counts: bool = True, density: bool = False
@@ -709,10 +720,11 @@ class MaskStatsMixin:
             Tuple[Optional[float], Optional[float], Optional[float]]:
                 Sparsity fractions for the three dense modules.
         """
-        layer = self.lm.transformer.h[layer_num]
-        mask1 = self.conditional_produce_mask(layer.attn.c_proj, non_mask_counts, density=density)
-        mask2 = self.conditional_produce_mask(layer.mlp.c_fc, non_mask_counts, density=density)
-        mask3 = self.conditional_produce_mask(layer.mlp.c_proj, non_mask_counts, density=density)
+        layer = self.lm.model.layers[layer_num]
+        mask1 = self.conditional_produce_mask(layer.mlp.gate_proj, non_mask_counts, density=density)
+        mask2 = self.conditional_produce_mask(layer.mlp.up_proj, non_mask_counts, density=density)
+        mask3 = self.conditional_produce_mask(layer.mlp.down_proj, non_mask_counts, density=density)
+        
         target_mask_value = 1.0 if density else 0.0
 
         dense1_frac = torch.mean((mask1 == target_mask_value).type(torch.FloatTensor)).item() if mask1 is not None else None
@@ -745,17 +757,30 @@ class MaskStatsMixin:
         Returns:
             Optional[float]: The overall sparsity fraction, or None if no masks are available.
         """
-        layer = self.lm.transformer.h[layer_num]
-        mask2 = self.conditional_produce_mask(layer.mlp.c_fc, non_mask_counts, density=density)
-        mask3 = self.conditional_produce_mask(layer.mlp.c_proj, non_mask_counts, density=density)
-        c_attn_mask = self.conditional_produce_mask(layer.attn.c_attn, non_mask_counts, density=density)
-        c_proj_mask = self.conditional_produce_mask(layer.attn.c_proj, non_mask_counts, density=density)
+
+        # return self.get_mask_sparsity_mlp(layer_num, non_mask_counts, density) + self.get_mask_sparsity_attn(layer_num, non_mask_counts, density)
+
+        
+        layer = self.lm.model.layers[layer_num]
+        
+        
+        
+        mask1 = self.conditional_produce_mask(layer.mlp.gate_proj, non_mask_counts, density=density)
+        mask2 = self.conditional_produce_mask(layer.mlp.up_proj, non_mask_counts, density=density)
+        mask3 = self.conditional_produce_mask(layer.mlp.down_proj, non_mask_counts, density=density)
+
+
+        q_proj_mask = self.conditional_produce_mask(layer.self_attn.q_proj, non_mask_counts, density=density)
+        k_proj_mask = self.conditional_produce_mask(layer.self_attn.k_proj, non_mask_counts, density=density)
+        v_proj_mask = self.conditional_produce_mask(layer.self_attn.v_proj, non_mask_counts, density=density)
+        o_proj_mask = self.conditional_produce_mask(layer.self_attn.o_proj, non_mask_counts, density=density)
+        
         target_mask_value = 1.0 if density else 0.0
 
-        if mask2 is None and mask3 is None and c_attn_mask is None and c_proj_mask is None:
+        mask_list = [mask1, mask2, mask3, q_proj_mask, k_proj_mask, v_proj_mask, o_proj_mask]
+        if all(x is None for x in mask_list):
             return None
         else:
-            mask_list = [mask2, mask3, c_attn_mask, c_proj_mask]
             sparsity = 0.0
             total = 0.0
             for mask in mask_list:

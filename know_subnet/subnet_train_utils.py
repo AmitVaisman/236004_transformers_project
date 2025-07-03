@@ -19,16 +19,13 @@ from know_subnet.metrics import (
 from know_subnet.lm.lm_utils import save_mask_scores
 from know_subnet.lm.qwen import QwenLM
 
-# def print_free_gpu_memory(device):
-#     allocated = torch.cuda.memory_allocated(device) / 1024**2
-#     reserved = torch.cuda.memory_reserved(device) / 1024**2
-#     print(f"[GPU] Allocated: {allocated:.2f} MB | Reserved: {reserved:.2f} MB")
+from know_subnet.constants import PATH_DICT, DEEP_SEEK_MODEL
 
 @torch.no_grad()
 def test_mask(
         model, 
         dataset_loader, 
-        lm_name="gpt2",
+        lm_name,
         do_sparsity_calc=True,
         do_rank_calc=False, 
         accelerator=None,
@@ -85,10 +82,9 @@ def test_mask(
             mask = accelerator.gather(mask)
 
         # Adjust outputs for autoregressive model by shifting.
-        if lm_name.startswith('gpt'):
-            logits = logits[..., :-1, :].contiguous()
-            labels = labels[..., 1:].contiguous()
-            mask = mask[..., 1:].contiguous()
+        logits = logits[..., :-1, :].contiguous()
+        labels = labels[..., 1:].contiguous()
+        mask = mask[..., 1:].contiguous()
         
         # print_free_gpu_memory(device=accelerator.device)
         # Compute metrics.
@@ -146,7 +142,7 @@ def zeroshot_log_loop(
     targetkg_val_loader,
     controllm_val_loader,
     controlkg_val_loader,
-    lm_name="gpt2",
+    lm_name,
     epoch=0,
     step=0,
     processed=0,
@@ -284,6 +280,7 @@ def validation_log_loop(
         metrics = test_mask(
             model=model,
             dataset_loader=loader,
+            lm_name=DEEP_SEEK_MODEL,
             do_sparsity_calc=do_sparsity,
             accelerator=accelerator
         )
@@ -308,6 +305,7 @@ def validation_log_loop(
             metrics = test_mask(
                 model=model,
                 dataset_loader=loader,
+                lm_name=DEEP_SEEK_MODEL,
                 do_sparsity_calc=do_sparsity,
                 accelerator=accelerator
             )
@@ -593,14 +591,11 @@ def initialize_training_components(
             )
     
     # 9) Create original model as KL div reference
-    full_model = None
-    if args.lm.startswith("gpt"):
-        full_model = QwenLM(
-            use_dropout=False,
-            lm_name=args.lm
-        )
-    else:
-        raise NotImplementedError("Only GPT2 is supported for now.")
+    full_model = QwenLM(
+        use_dropout=False,
+        lm_name=args.lm
+    )
+
     full_model.freeze_params(exclude_name_list=[], verbose=False)
     full_model.eval()
     full_model = accelerator.prepare_model(full_model, evaluation_mode=True)
@@ -814,8 +809,13 @@ def train_mask(
             attention_mask = batch['attention_mask']
             labels = batch['labels']
             mask = labels != -100
+            
+            print(input_ids, labels, mask)
+            
             uniform_kl_dist = batch['uniform_kl']
             batch_size = input_ids.shape[0]
+
+            assert False
 
             ####################################################################
             # 1) Expression Loss

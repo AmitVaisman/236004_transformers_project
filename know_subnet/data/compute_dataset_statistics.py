@@ -7,9 +7,11 @@ from know_subnet.metrics import hf_perp_func
 from know_subnet.data.wordnet_dataloader import load_wordnet_targetkg, load_wordnet_controlkg
 from know_subnet.data.conceptnet_dataloader import load_conceptnet
 
-from know_subnet.lm.gpt2 import GPT2LM
+from know_subnet.lm.qwen import QwenLM
 
 from tqdm import tqdm
+
+from know_subnet.constants import PATH_DICT, DEEP_SEEK_MODEL
 
 wordnet_targetkg_name_list = [
     "Synset('building.n.01')", 
@@ -28,10 +30,6 @@ conceptnet_targetkg_name_list = [
 ]
 
 model_list = [
-    "gpt2",
-    "gpt2-medium",
-    "gpt2-large",
-    "gpt2-xl"
 ]
 
 @torch.no_grad()
@@ -130,11 +128,11 @@ def get_dataloader(kg_type, targetkg_name, lm, is_targetkg):
 def get_original_losses(
         kg_type,
         kg_list,
-        lm="gpt2", 
+        lm, 
         include_controlkg=True, 
         include_targetkg=True
     ):
-    full_model = GPT2LM(
+    full_model = QwenLM(
         use_dropout=False,
         lm_name=lm
     )
@@ -210,7 +208,7 @@ def wordnet_analysis():
     
     # 2) Get TargetKG original loss/PPL values
     get_original_losses(
-        lm="gpt2", 
+        lm=DEEP_SEEK_MODEL,
         kg_type="wordnet",
         kg_list=wordnet_targetkg_name_list, 
         include_controlkg=False, 
@@ -238,7 +236,7 @@ def wordnet_analysis():
 
     # 4) Get ControlKG original loss/PPL values
     get_original_losses(
-        lm="gpt2", 
+        lm=DEEP_SEEK_MODEL, 
         kg_type="wordnet",
         kg_list=wordnet_targetkg_name_list, 
         include_controlkg=True, 
@@ -275,7 +273,7 @@ def conceptnet_analysis():
     
     # 2) Get TargetKG original loss/PPL values
     get_original_losses(
-        lm="gpt2", 
+        lm=DEEP_SEEK_MODEL, 
         kg_type="conceptnet", 
         kg_list=conceptnet_targetkg_name_list, 
         include_controlkg=False, 
@@ -304,7 +302,7 @@ def conceptnet_analysis():
 
     # 4) Get ControlKG original loss/PPL values
     get_original_losses(
-        lm="gpt2", 
+        lm=DEEP_SEEK_MODEL, 
         kg_type="conceptnet",
         kg_list=conceptnet_targetkg_name_list, 
         include_controlkg=True, 

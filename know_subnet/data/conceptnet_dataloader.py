@@ -7,6 +7,8 @@ from know_subnet.constants import PATH_DICT
 from torch.nn import functional as F
 from know_subnet.lm.lm_utils import create_uniform_dist
 
+from know_subnet.constants import PATH_DICT, DEEP_SEEK_MODEL
+
 
 class ConceptNetDataset(Dataset):
     """
@@ -28,7 +30,7 @@ class ConceptNetDataset(Dataset):
         labels_str (list): A list of str label sentences.
     """
 
-    def __init__(self, fam_dict_list, lm='gpt2', is_controlkg=False):
+    def __init__(self, fam_dict_list, lm, is_controlkg=False):
         inputs = []
         labels = []
 
@@ -200,7 +202,7 @@ def test():
                 break
     
     targetkg_name = "fruit"
-    lm = "gpt2"
+    lm = DEEP_SEEK_MODEL
 
     targetkg_train_loader, targetkg_val_loader = load_conceptnet(
         targetkg_name=targetkg_name,
