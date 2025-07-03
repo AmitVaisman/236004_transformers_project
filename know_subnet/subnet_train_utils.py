@@ -1015,13 +1015,23 @@ def train_mask(
         optimizer=optimizer,
         accelerator=accelerator
     )
+    # log_dict = validation_log_loop(
+    #     args=args,
+    #     model=model, 
+    #     log_dict=train_log_dict,
+    #     targetkg_val_loader=targetkg_val_loader,
+    #     controllm_val_loader=controllm_val_loader,
+    #     controlkg_val_loader=controlkg_val_loader,
+    #     accelerator=accelerator
+    # )
     log_dict = validation_log_loop(
         args=args,
         model=model, 
         log_dict=train_log_dict,
-        targetkg_val_loader=targetkg_val_loader,
-        controllm_val_loader=controllm_val_loader,
-        controlkg_val_loader=controlkg_val_loader,
+        # targetkg_val_loader=targetkg_val_loader,
+        # controllm_val_loader=controllm_val_loader,
+        # controlkg_val_loader=controlkg_val_loader,
+        our_val_loader=our_val_loader,
         accelerator=accelerator
     )
     save_mask_scores(model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
