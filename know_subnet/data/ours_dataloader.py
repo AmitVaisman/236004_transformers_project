@@ -30,42 +30,42 @@ class OursDataset(Dataset):
 
         self.inputs_str = inputs
         self.labels_str = labels
+
+        text = [f"Question: {input}, Reasoning: {label}" for input, label in zip(inputs, labels)]
+        self.cat_str = text
         
         self.tokenizer = AutoTokenizer.from_pretrained(lm, fast=True)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.inputs = self.tokenizer(inputs, return_tensors='pt', padding=True, truncation=True)
-        self.labels = self.tokenizer(labels, return_tensors='pt', padding=True, truncation=True)["input_ids"]
+        self.inputs = self.tokenizer(text, return_tensors='pt', padding=True, truncation=True)
+        # self.labels = self.tokenizer(labels, return_tensors='pt', padding=True, truncation=True)["input_ids"]
 
         # set all non-masked locs in labels ids to -100 so the cross entropy loss ignores it:
         # https://discuss.huggingface.co/t/bertformaskedlm-s-loss-and-scores-how-the-loss-is-computed/607
         # https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html 
-        final_ids = [len(ids) for ids in self.tokenizer(inputs)["input_ids"]]
-        self.mask = torch.ones(self.labels.shape[0], self.labels.shape[1])
-        for row, idx in zip(self.mask, final_ids):
-            row[idx - 1] = 0
-        # self.mask = self.mask == 1
-        # self.labels[self.mask] = -100
+        # label_ids = [1 for ids in self.tokenizer(inputs)["input_ids"]]
+        # self.mask = torch.ones(self.labels.shape[0], self.labels.shape[1])
+        # for row, idx in zip(self.mask, label_ids):
+        #     row[idx - 1] = 0  # label
+        # self.mask = self.mask == 1  # not label
+        # self.labels[self.mask] = -100  
 
-        self.is_controlkg = is_controlkg
-        if not self.is_controlkg:
-            self.uniform_kl_dist = create_uniform_dist(self.labels, lm)
+        # self.is_controlkg = is_controlkg
+        # if not self.is_controlkg:
+        #     self.uniform_kl_dist = create_uniform_dist(self.labels, lm)
         
-        inp_ids = self.inputs['input_ids']
+        # inp_ids = self.inputs['input_ids']
 
 
     def __getitem__(self, idx):
         item = {key: val[idx].clone().detach() for key, val in self.inputs.items()}
-        item['inputs_str'] = self.inputs_str[idx]
-        item['mask'] = self.mask[idx]
+        # item['inputs_str'] = self.inputs_str[idx]
+        item['inputs_str'] = self.cat_str[idx]
+        # item['mask'] = self.mask[idx]
         
-        if not(self.is_controlkg):
-            item['uniform_kl'] = self.uniform_kl_dist[idx]
-        
-        if not(self.labels_str is None):
-            item['labels'] = self.labels[idx]
-            item['labels_str'] = self.labels_str[idx]
-
+        # item['labels'] = self.labels[idx]
+        # item['labels'] = self.inputs[idx]["input_ids"].squeeze(0)
+        item['labels_str'] = self.cat_str[idx]
         
         return item
 
@@ -74,12 +74,10 @@ class OursDataset(Dataset):
 
 
 def load_ours(
-        targetkg_name: str, 
         lm: str,
         train_batch_size: int,
         eval_batch_size: int,
         use_cuda: bool = True,
-        is_worse_format: bool = False,
     ) -> Tuple[DataLoader, DataLoader]:
     fam_dict_list = []
     fam_dict_list = parse_json_to_dict(os.path.join(PATH_DICT["ours_targetkg"], f"filtered_data.json"))
@@ -92,7 +90,7 @@ def load_ours(
     labels = []
     for entry in fam_dict_list:
         inputs.append(entry[f"question"])
-        labels.append(entry[f"only_answer_part"])
+        labels.append(entry[f"only_reasoning_part"])
     
     train_dataset = OursDataset(
         inputs=inputs, 
@@ -103,7 +101,7 @@ def load_ours(
     train_loader = DataLoader(
         train_dataset, 
         batch_size=train_batch_size, 
-        shuffle=True, 
+        # shuffle=True, 
         pin_memory=use_cuda, 
         num_workers=0,
         worker_init_fn=seed_worker

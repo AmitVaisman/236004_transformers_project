@@ -52,8 +52,9 @@ def test_mask(
         # Extract and detach inputs.
         input_ids = batch['input_ids'].detach()
         attention_mask = batch['attention_mask'].detach()
-        labels = batch['labels'].detach()
-        mask = labels != -100
+        # labels = batch['labels'].detach()
+        labels = batch['input_ids'].detach()
+        # mask = labels != -100
         
         # Move data to GPU if needed and not using accelerator.
         if accelerator is None:
@@ -66,12 +67,12 @@ def test_mask(
         loss = output.loss.detach()
         logits = output.logits.detach()
         labels = labels.detach()
-        mask = mask.detach()
+        # mask = mask.detach()
         if accelerator is None:
             loss = output.loss.cpu()
             logits = output.logits.cpu()
             labels = labels.cpu()
-            mask = mask.cpu()
+            # mask = mask.cpu()
 
         # If using accelerator, gather the outputs.
         if accelerator is not None:
@@ -79,19 +80,19 @@ def test_mask(
             loss = torch.mean(loss)
             logits = accelerator.gather(logits)
             labels = accelerator.gather(labels)
-            mask = accelerator.gather(mask)
+            # mask = accelerator.gather(mask)
 
         # Adjust outputs for autoregressive model by shifting.
         logits = logits[..., :-1, :].contiguous()
         labels = labels[..., 1:].contiguous()
-        mask = mask[..., 1:].contiguous()
+        # mask = mask[..., 1:].contiguous()
         
         # print_free_gpu_memory(device=accelerator.device)
         # Compute metrics.
-        top1_acc, top5_acc, top10_acc, num_masked_tokens = acc_func(logits, labels, mask)
+        top1_acc, top5_acc, top10_acc, num_masked_tokens = acc_func(logits, labels) # mask
         hf_perp = hf_perp_func(loss)
         if do_rank_calc:
-            label_rank, label_prb = rank_prob_func(logits, labels, mask)
+            label_rank, label_prb = rank_prob_func(logits, labels) # mask
         
         # Accumulate metrics.
         tot_loss += loss
@@ -139,9 +140,10 @@ def test_mask(
 @torch.no_grad()
 def zeroshot_log_loop(
     model,
-    targetkg_val_loader,
-    controllm_val_loader,
-    controlkg_val_loader,
+    # targetkg_val_loader,
+    # controllm_val_loader,
+    # controlkg_val_loader,
+    our_val_loader,
     lm_name,
     epoch=0,
     step=0,
@@ -159,9 +161,10 @@ def zeroshot_log_loop(
     
     # Define the loaders and their corresponding prefixes.
     loaders_and_prefixes = [
-        (targetkg_val_loader, 'targetkg'),
-        (controlkg_val_loader, 'controlkg'),
-        (controllm_val_loader, 'controllm')
+        # (targetkg_val_loader, 'targetkg'),
+        # (controlkg_val_loader, 'controlkg'),
+        # (controllm_val_loader, 'controllm')
+        (our_val_loader, 'ours')
     ]
     
     # Process each validation loader.
@@ -260,18 +263,16 @@ def validation_log_loop(
     args,
     model,
     log_dict,
-    targetkg_val_loader,
-    controllm_val_loader,
-    controlkg_val_loader,
+    our_val_loader,
     accelerator
 ):
     model.eval()
 
     # 1) Define the three validation passes.
     loaders_and_prefixes = [
-        ("targetkg-",    targetkg_val_loader, True),
-        ("controllm-",   controllm_val_loader, False),
-        ("controlkg-",   controlkg_val_loader, False),
+        ("our_val_loader-",    our_val_loader, True),
+        # ("controllm-",   controllm_val_loader, False),
+        # ("controlkg-",   controlkg_val_loader, False),
     ]
 
     # 2) Run the normal passes
@@ -529,12 +530,14 @@ def set_clr_scheduler(args, accelerator):
 def initialize_training_components(
         args, 
         model, 
-        targetkg_train_loader, 
-        targetkg_val_loader,
-        controlkg_train_loader, 
-        controlkg_val_loader,
-        controllm_train_loader, 
-        controllm_val_loader,
+        # targetkg_train_loader, 
+        # targetkg_val_loader,
+        # controlkg_train_loader, 
+        # controlkg_val_loader,
+        # controllm_train_loader, 
+        # controllm_val_loader,
+        our_train_loader, 
+        our_val_loader,
         accelerator
     ):
     # 0) Print hyperparameters
@@ -562,7 +565,8 @@ def initialize_training_components(
         lr = args.mask_lr)
 
     # 4) Setup the learning rate scheduler
-    total_warmup_steps =  len(targetkg_train_loader) * args.train_epoch * args.lr_warmup_frac
+    # total_warmup_steps = len(targetkg_train_loader) * args.train_epoch * args.lr_warmup_frac
+    total_warmup_steps = len(our_train_loader) * args.train_epoch * args.lr_warmup_frac
     lr_scheduler  = torch.optim.lr_scheduler.LinearLR(
         optimizer, start_factor=1e-10, end_factor=1.0, 
         total_iters=total_warmup_steps, last_epoch=-1)
@@ -571,7 +575,10 @@ def initialize_training_components(
     # NOTE: log_target=False means that 
     #       - input logits should be log_softmax-ed
     #       - target logits should be softmax-ed
-    kl_loss = torch.nn.KLDivLoss(size_average=None, reduce=None, reduction='batchmean', log_target=False)
+    # kl_loss = torch.nn.KLDivLoss(size_average=None, reduce=None, reduction='batchmean', log_target=False)
+
+    # Setup CE loss
+    cse_loss = torch.nn.CrossEntropyLoss(reduction='mean')
 
     # 6) Create schedulers for multi-objective loss lambda weighing
     clr_params = set_clr_scheduler(args, accelerator)
@@ -582,38 +589,43 @@ def initialize_training_components(
     
     # 8) Prepare (for accelerate) dataloaders
     if accelerator is not None:
-        targetkg_train_loader, targetkg_val_loader, \
-            controlkg_train_loader, controlkg_val_loader, \
-            controllm_train_loader, controllm_val_loader = accelerator.prepare(
-                targetkg_train_loader, targetkg_val_loader, \
-                controlkg_train_loader, controlkg_val_loader, \
-                controllm_train_loader, controllm_val_loader
-            )
+        # targetkg_train_loader, targetkg_val_loader, \
+        #     controlkg_train_loader, controlkg_val_loader, \
+        #     controllm_train_loader, controllm_val_loader = accelerator.prepare(
+        #         targetkg_train_loader, targetkg_val_loader, \
+        #         controlkg_train_loader, controlkg_val_loader, \
+        #         controllm_train_loader, controllm_val_loader
+        #     )
+        our_train_loader, our_val_loader = accelerator.prepare(
+            our_train_loader, our_val_loader
+        )
     
-    # 9) Create original model as KL div reference
-    full_model = QwenLM(
-        use_dropout=False,
-        lm_name=args.lm
-    )
+    # # 9) Create original model as KL div reference
+    # full_model = QwenLM(
+    #     use_dropout=False,
+    #     lm_name=args.lm
+    # )
 
-    full_model.freeze_params(exclude_name_list=[], verbose=False)
-    full_model.eval()
-    full_model = accelerator.prepare_model(full_model, evaluation_mode=True)
+    # full_model.freeze_params(exclude_name_list=[], verbose=False)
+    # full_model.eval()
+    # full_model = accelerator.prepare_model(full_model, evaluation_mode=True)
             
     return (
         model, 
-        full_model,
         optimizer, 
         lr_scheduler, 
-        kl_loss, 
+        # kl_loss, 
+        cse_loss,
         clr_params, 
         mask_params,
-        targetkg_train_loader, 
-        targetkg_val_loader, 
-        controlkg_train_loader,
-        controlkg_val_loader,
-        controllm_train_loader,
-        controllm_val_loader
+        # targetkg_train_loader, 
+        # targetkg_val_loader, 
+        # controlkg_train_loader,
+        # controlkg_val_loader,
+        # controllm_train_loader,
+        # controllm_val_loader
+        our_train_loader,
+        our_val_loader
     )
 
 def compute_controllm_loss(
@@ -733,43 +745,40 @@ def combine_losses(accelerator, losses, clr_params, expression_loss=None):
 def train_mask(
         args, 
         model, 
-        targetkg_train_loader, 
-        targetkg_val_loader,
-        controlkg_train_loader=None, 
-        controlkg_val_loader=None,
-        controllm_train_loader=None, 
-        controllm_val_loader=None,
+        # targetkg_train_loader, 
+        # targetkg_val_loader,
+        # controlkg_train_loader=None, 
+        # controlkg_val_loader=None,
+        # controllm_train_loader=None, 
+        # controllm_val_loader=None,
+        our_train_loader, 
+        our_val_loader,
         accelerator=None
     ):
     ############################################################################
     # 1) Setup: init training components + prepare with accelerate
-    model, full_model, optimizer, lr_scheduler, \
-        kl_loss, clr_params, mask_params, \
-        targetkg_train_loader, targetkg_val_loader, \
-        controlkg_train_loader, controlkg_val_loader, \
-        controllm_train_loader, controllm_val_loader = initialize_training_components(
+    model, optimizer, lr_scheduler, \
+        cse_loss, clr_params, mask_params, \
+        our_train_loader, our_val_loader = initialize_training_components(
             args, 
             model, 
-            targetkg_train_loader, 
-            targetkg_val_loader,
-            controlkg_train_loader, 
-            controlkg_val_loader,
-            controllm_train_loader, 
-            controllm_val_loader,
+            our_train_loader, 
+            our_val_loader,
             accelerator
         )
     
     ############################################################################
     # 2) Zeroshot eval: on init mask prior to updates
-    log_dict = zeroshot_log_loop(
-        model=model, 
-        lm_name=args.lm,
-        targetkg_val_loader=targetkg_val_loader,
-        controllm_val_loader=controllm_val_loader,
-        controlkg_val_loader=controlkg_val_loader,
-        accelerator=accelerator,
-        verbose=args.verbose
-    )
+    # log_dict = zeroshot_log_loop(
+    #     model=model, 
+    #     lm_name=args.lm,
+    #     # targetkg_val_loader=targetkg_val_loader,
+    #     # controllm_val_loader=controllm_val_loader,
+    #     # controlkg_val_loader=controlkg_val_loader,
+    #     our_val_loader=our_val_loader,
+    #     accelerator=accelerator,
+    #     verbose=args.verbose
+    # )
 
     ############################################################################
     # 3) Initialize training vars
@@ -789,15 +798,16 @@ def train_mask(
         epoch_loop = tqdm(range(1, args.train_epoch + 1), desc='epoch', leave=False, position=0)
     else:
         epoch_loop = range(1, args.train_epoch + 1)
-    if args.include_controllm_loss:
-        controllm_loop = mycycle(controllm_train_loader)
-    if args.include_controlkg_loss:
-        controlkg_loop = mycycle(controlkg_train_loader)    
+    # if args.include_controllm_loss:
+    #     controllm_loop = mycycle(controllm_train_loader)
+    # if args.include_controlkg_loss:
+    #     controlkg_loop = mycycle(controlkg_train_loader)    
     
     ############################################################################
     # 5) Main train loop
     for epoch in epoch_loop:
-        train_loop = targetkg_train_loader
+        # train_loop = targetkg_train_loader
+        train_loop = our_train_loader
         clr_params.step()
 
         for batch in train_loop:
@@ -807,15 +817,16 @@ def train_mask(
 
             input_ids = batch['input_ids']
             attention_mask = batch['attention_mask']
-            labels = batch['labels']
-            mask = labels != -100
+            # labels = batch['labels']
+            labels = batch['input_ids']
+            # mask = labels != -100
             
-            print(input_ids, labels, mask)
+            # print(input_ids, labels)
             
-            uniform_kl_dist = batch['uniform_kl']
+            # uniform_kl_dist = batch['uniform_kl']
             batch_size = input_ids.shape[0]
 
-            assert False
+            # assert False
 
             ####################################################################
             # 1) Expression Loss
@@ -835,37 +846,46 @@ def train_mask(
 
                 inverse_losses = {}
                 
-                # 2.1) ControlLM maintenance pass on inverse mask
-                if args.include_controllm_loss:
-                    inverse_losses["controllm"] = compute_controllm_loss(
-                        model, 
-                        full_model, 
-                        controllm_loop, 
-                        kl_loss
-                    )
+                # # 2.1) ControlLM maintenance pass on inverse mask
+                # if args.include_controllm_loss:
+                #     inverse_losses["controllm"] = compute_controllm_loss(
+                #         model, 
+                #         full_model, 
+                #         controllm_loop, 
+                #         kl_loss
+                #     )
 
-                # 2.2) ControlKG maintenance pass on inverse mask
-                if args.include_controlkg_loss:
-                    inverse_losses["controlkg"] = compute_controlkg_loss(
-                        model, 
-                        full_model, 
-                        controlkg_loop, 
-                        kl_loss
-                    )
+                # # 2.2) ControlKG maintenance pass on inverse mask
+                # if args.include_controlkg_loss:
+                #     inverse_losses["controlkg"] = compute_controlkg_loss(
+                #         model, 
+                #         full_model, 
+                #         controlkg_loop, 
+                #         kl_loss
+                #     )
 
                 # 2.3) TargetKG suppression pass on inverse mask
                 if args.include_targetkg_suppression_loss:
                     targetkg_output = model(input_ids, attention_mask=attention_mask, labels=labels)
                     targetkg_loss = None
                     targetkg_logits = targetkg_output.logits
-                    log_probs = F.log_softmax(targetkg_logits, dim=-1)
-                    masked_log_probs = log_probs[mask]
+                    # log_probs = F.log_softmax(targetkg_logits, dim=-1)
+                    # masked_log_probs = log_probs[mask]
                     
-                    # KL loss with uniform distribution
-                    inverse_losses["targetkg"] = kl_loss(
-                        input = masked_log_probs,
-                        target = uniform_kl_dist
+                    # # KL loss with uniform distribution
+                    # inverse_losses["targetkg"] = kl_loss(
+                    #     input = masked_log_probs,
+                    #     target = uniform_kl_dist
+                    # )
+
+                    # CE loss
+                    print(f"TargetKG logits shape: {targetkg_logits.shape}, labels shape: {labels.shape}")
+                    inverse_losses["targetkg"] = cse_loss(
+                        input = targetkg_logits.view(-1, targetkg_logits.shape[-1]),
+                        target = labels.view(-1)
                     )
+                    print(f'inverse_losses["targetkg"] = {inverse_losses["targetkg"]}')
+
                     del targetkg_output
                     del targetkg_logits
                     del input_ids
@@ -875,12 +895,13 @@ def train_mask(
                 # set mask back to normal
                 unwrapped_model.set_is_inverse_mask(is_inverse_mask=False)
                 
-                clr_combined_loss = combine_losses(
-                    accelerator, 
-                    inverse_losses, 
-                    clr_params, 
-                    expression_loss if not args.exclude_targetkg_expression_loss else None
-                )
+                clr_combined_loss = inverse_losses["targetkg"]
+                # clr_combined_loss = combine_losses(
+                #     accelerator, 
+                #     inverse_losses, 
+                #     clr_params, 
+                #     expression_loss if not args.exclude_targetkg_expression_loss else None
+                # )
                 
                 # backward pass on combined loss
                 accelerator.backward(clr_combined_loss)
@@ -935,7 +956,7 @@ def train_mask(
             reg_log = None if reg is None else reg.item()
 
             # do logging or checkpointing
-            do_eval = (step == 1) or (step % args.log_step == 0)
+            do_eval = (step % args.log_step == 0) # (step == 1) or
             train_log_dict = train_log(
                 args=args, 
                 epoch=epoch, 
@@ -961,9 +982,10 @@ def train_mask(
                     args=args,
                     model=model, 
                     log_dict=train_log_dict,
-                    targetkg_val_loader=targetkg_val_loader,
-                    controllm_val_loader=controllm_val_loader,
-                    controlkg_val_loader=controlkg_val_loader,
+                    # targetkg_val_loader=targetkg_val_loader,
+                    # controllm_val_loader=controllm_val_loader,
+                    # controlkg_val_loader=controlkg_val_loader,
+                    our_val_loader=our_val_loader,
                     accelerator=accelerator
                 )
                 accelerator.log(log_dict)

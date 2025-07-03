@@ -56,48 +56,134 @@ def topk(k: int, num_masked_tokens: int, masked_label_ids: torch.Tensor, masked_
     acc = is_in_topk.float()
     return acc
 
-def acc_func(logits: torch.Tensor, labels: torch.Tensor, mask: torch.Tensor):
+# def acc_func(logits: torch.Tensor, labels: torch.Tensor, mask: torch.Tensor):
+#     """
+#     Compute the number of correct predictions for top-1, top-5, and top-10 for the masked tokens.
+    
+#     Returns:
+#         top1_acc, top5_acc, top10_acc, num_masked_tokens
+#     """
+#     # NOTE: in language modeling evaluation, multiple tokens could be masked in one sequence
+#     # num_masked_tokens =  mask.sum().item()
+#     prbs = F.softmax(logits, dim=-1)
+#     # masked_prbs = prbs[mask,:]
+#     # masked_label_ids = labels[mask]
+
+#     top1_acc = topk(1, num_masked_tokens, masked_label_ids, masked_prbs).sum().item()
+#     top5_acc = topk(5, num_masked_tokens, masked_label_ids, masked_prbs).sum().item()
+#     top10_acc = topk(10, num_masked_tokens, masked_label_ids, masked_prbs).sum().item() 
+
+#     return top1_acc, top5_acc, top10_acc, num_masked_tokens
+
+def acc_func(logits: torch.Tensor, labels: torch.Tensor, pad_token_id: int = -100):
     """
-    Compute the number of correct predictions for top-1, top-5, and top-10 for the masked tokens.
+    Compute top-1, top-5, top-10 accuracy for all tokens,
+    optionally ignoring padding tokens (label == pad_token_id).
+    
+    Args:
+        logits: [batch_size, seq_len, vocab_size]
+        labels: [batch_size, seq_len]
+        pad_token_id: token ID to ignore (default: -100)
     
     Returns:
-        top1_acc, top5_acc, top10_acc, num_masked_tokens
+        top1_acc, top5_acc, top10_acc, num_valid_tokens
     """
-    # NOTE: in language modeling evaluation, multiple tokens could be masked in one sequence
-    num_masked_tokens =  mask.sum().item()
-    prbs = F.softmax(logits, dim=-1)
-    masked_prbs = prbs[mask,:]
-    masked_label_ids = labels[mask]
+    # Flatten
+    probs = F.softmax(logits, dim=-1)  # [B, T, V]
+    probs = probs.view(-1, probs.size(-1))    # [B*T, V]
+    labels = labels.view(-1)                  # [B*T]
 
-    top1_acc = topk(1, num_masked_tokens, masked_label_ids, masked_prbs).sum().item()
-    top5_acc = topk(5, num_masked_tokens, masked_label_ids, masked_prbs).sum().item()
-    top10_acc = topk(10, num_masked_tokens, masked_label_ids, masked_prbs).sum().item() 
+    # Ignore padding
+    valid_mask = labels != pad_token_id
+    valid_labels = labels[valid_mask]
+    valid_probs = probs[valid_mask]
 
-    return top1_acc, top5_acc, top10_acc, num_masked_tokens
+    num_valid_tokens = valid_labels.size(0)
+    if num_valid_tokens == 0:
+        return 0.0, 0.0, 0.0, 0
 
-def rank_prob_func(logits: torch.Tensor, label_ids: torch.Tensor, mask: torch.Tensor):
-    """
-    Compute the rank (i.e., position) of the gold label and the log-probability of the gold label for each masked token.
+    def topk(k):
+        topk_preds = valid_probs.topk(k, dim=-1).indices
+        correct = (topk_preds == valid_labels.unsqueeze(-1)).any(dim=-1)
+        return correct.float().sum().item()
+
+    top1 = topk(1)
+    top5 = topk(5)
+    top10 = topk(10)
+
+    top1_acc = top1 / num_valid_tokens
+    top5_acc = top5 / num_valid_tokens
+    top10_acc = top10 / num_valid_tokens
+
+    return top1_acc, top5_acc, top10_acc, num_valid_tokens
+
+
+# def rank_prob_func(logits: torch.Tensor, label_ids: torch.Tensor, mask: torch.Tensor):
+#     """
+#     Compute the rank (i.e., position) of the gold label and the log-probability of the gold label for each masked token.
     
+#     Returns:
+#         gold_label_ranks: A tensor of ranks (lower is better).
+#         gold_label_prbs: A tensor of the log-probabilities for the gold labels.
+#     """
+#     # Get masked pred probs and gold label ids
+#     prbs = F.softmax(logits, dim=-1)
+#     masked_prbs = prbs[mask,:]
+#     masked_label_ids = label_ids[mask]
+
+#     # Get ranks by sorting
+#     sorted_indices = torch.argsort(masked_prbs, descending=True)
+#     gold_label_ranks = torch.where(sorted_indices == masked_label_ids.view(-1, 1))[1]
+#     gold_label_ranks = gold_label_ranks.float()
+
+#     # Get probs through corresponding gold label id
+#     gold_label_prbs = torch.gather(masked_prbs, -1, masked_label_ids.view(-1, 1))
+#     gold_label_prbs = torch.log(gold_label_prbs.squeeze())    
+    
+#     return gold_label_ranks, gold_label_prbs
+
+def rank_prob_func(
+    logits: torch.Tensor,          # [B, T, V]
+    label_ids: torch.Tensor,       # [B, T]
+    pad_token_id: int = -100       # label value to ignore
+):
+    """
+    Rank (0-based) of the gold label and log-probability of the gold label
+    for *all* non-padding tokens.
+
+    Args:
+        logits      – model outputs before softmax, shape [batch, seq_len, vocab]
+        label_ids   – gold token IDs, shape [batch, seq_len]
+        pad_token_id– label value to skip; usually -100 or tokenizer.pad_token_id
+
     Returns:
-        gold_label_ranks: A tensor of ranks (lower is better).
-        gold_label_prbs: A tensor of the log-probabilities for the gold labels.
+        gold_label_ranks  – 1-D tensor, rank of the gold label (0 = top-1)
+        gold_label_logps  – 1-D tensor, log-probability of the gold label
     """
-    # Get masked pred probs and gold label ids
-    prbs = F.softmax(logits, dim=-1)
-    masked_prbs = prbs[mask,:]
-    masked_label_ids = label_ids[mask]
+    # [B, T, V] → [N, V]   where N = B*T
+    probs = F.softmax(logits, dim=-1).reshape(-1, logits.size(-1))
+    labels = label_ids.reshape(-1)                            # [N]
 
-    # Get ranks by sorting
-    sorted_indices = torch.argsort(masked_prbs, descending=True)
-    gold_label_ranks = torch.where(sorted_indices == masked_label_ids.view(-1, 1))[1]
-    gold_label_ranks = gold_label_ranks.float()
+    # keep only positions that have a real label
+    keep = labels != pad_token_id
+    probs = probs[keep]                                       # [M, V]
+    labels = labels[keep]                                     # [M]
+    if probs.numel() == 0:
+        # If everything is padding, return empty tensors
+        return torch.empty(0), torch.empty(0)
 
-    # Get probs through corresponding gold label id
-    gold_label_prbs = torch.gather(masked_prbs, -1, masked_label_ids.view(-1, 1))
-    gold_label_prbs = torch.log(gold_label_prbs.squeeze())    
-    
-    return gold_label_ranks, gold_label_prbs
+    # Rank of the gold label
+    sorted_indices = probs.argsort(dim=-1, descending=True)   # [M, V]
+    # Boolean matrix where gold token appears in each row
+    matches = sorted_indices.eq(labels.unsqueeze(1))
+    # argmax over last dim gives position of True → the rank (0 = best)
+    gold_label_ranks = matches.argmax(dim=-1).float()         # [M]
+
+    # Log-probability of the gold label
+    gold_label_probs = probs.gather(1, labels.unsqueeze(1)).squeeze(1)  # [M]
+    gold_label_logps = gold_label_probs.log()
+
+    return gold_label_ranks, gold_label_logps
 
 # TODO: Delete this if you don't find instances of it being used.
 # def qual_func(input_str, logits, label_ids, mask, tokenizer):

@@ -10,12 +10,13 @@ from accelerate.utils import ProjectConfiguration
 from know_subnet.lm.lm_utils import load_lm
 
 # DATASET IMPORTS
-from know_subnet.data.wordnet_dataloader import (
-    load_wordnet_targetkg,
-    load_wordnet_controlkg
-)
-from know_subnet.data.conceptnet_dataloader import load_conceptnet
-from know_subnet.data.wikitext_dataloader import load_wikitext2_dataloader
+# from know_subnet.data.wordnet_dataloader import (
+#     load_wordnet_targetkg,
+#     load_wordnet_controlkg
+# )
+# from know_subnet.data.conceptnet_dataloader import load_conceptnet
+# from know_subnet.data.wikitext_dataloader import load_wikitext2_dataloader
+from know_subnet.data.ours_dataloader import load_ours
 
 # EXPERIMENT CONFIG IMPORTS
 from know_subnet.args import get_args
@@ -49,70 +50,82 @@ def data_loading(args, accelerator=None):
         controllm_val_loader = None
 
         ########################################################################
-        # 1) TargetKG loading
+        # 1) Ours loading
         ########################################################################
         accelerator.print("-" * 50)
-        if args.kg_type == 'wordnet':
-            accelerator.print("Loading WordNet TargetKG...")
-            targetkg_train_loader, targetkg_val_loader =  load_wordnet_targetkg(
-                targetkg_name=args.targetkg_name, 
-                lm=args.lm,
-                train_batch_size=args.train_batch_size,
-                eval_batch_size=args.eval_batch_size,
-                is_worse_format=False
-            )
-            accelerator.print("Loading WordNet TargetKG done.")
-        elif args.kg_type == 'conceptnet':
-            accelerator.print("Loading ConceptNet TargetKG...")
-            targetkg_train_loader, targetkg_val_loader = load_conceptnet(
-                targetkg_name=args.targetkg_name, 
-                lm=args.lm,
-                train_batch_size=args.train_batch_size,
-                eval_batch_size=args.eval_batch_size,
-                is_controlkg=False,
-                is_csqa=args.is_csqa
-            )
-            accelerator.print("Loading ConceptNet TargetKG done.")
-        
-        ########################################################################
-        # 2) ControlKG loading
-        ########################################################################
-        accelerator.print("-" * 50)
-        if args.kg_type == "wordnet":
-            accelerator.print("Loading WordNet ControlKG...")
-            controlkg_train_loader, controlkg_val_loader = load_wordnet_controlkg(
-                lm=args.lm,
-                train_batch_size=args.train_batch_size,
-                eval_batch_size=args.eval_batch_size,
-                is_worse_format=False
-            )
-            accelerator.print("Loading WordNet ControlKG done.")
-        elif args.kg_type == "conceptnet":
-            accelerator.print("Loading ConceptNet ControlKG...")
-            controlkg_train_loader, controlkg_val_loader = load_conceptnet(
-                targetkg_name=args.targetkg_name, 
-                lm=args.lm,
-                train_batch_size=args.train_batch_size,
-                eval_batch_size=args.eval_batch_size,
-                is_controlkg=True,
-                is_csqa=args.is_csqa
-            )
-            accelerator.print("Loading ConceptNet ControlKG done.")
-            
-        ########################################################################
-        # 3) ControlLM loading
-        ########################################################################
-        accelerator.print("-" * 50)
-        accelerator.print("Loading wikitext2 as ControlLM...")
-        controllm_train_loader, controllm_val_loader = load_wikitext2_dataloader(
-            lm_name=args.lm,
-            block_size=512,
-            # mlm_probability=0.15,
-            val_num=args.controllm_eval_batch_size,
-            train_batch_size=args.controllm_train_batch_size, 
-            eval_batch_size=args.controllm_eval_batch_size
+        accelerator.print("Loading Our dataset...")
+        our_train_loader, our_val_loader = load_ours(
+            lm=args.lm,
+            train_batch_size=args.train_batch_size,
+            eval_batch_size=args.eval_batch_size
         )
-        accelerator.print("Loading ControlLM done.")
+        accelerator.print("Loading Our dataset done.")
+
+        # ########################################################################
+        # # 1) TargetKG loading
+        # ########################################################################
+        # accelerator.print("-" * 50)
+        # if args.kg_type == 'wordnet':
+        #     accelerator.print("Loading WordNet TargetKG...")
+        #     targetkg_train_loader, targetkg_val_loader =  load_wordnet_targetkg(
+        #         targetkg_name=args.targetkg_name, 
+        #         lm=args.lm,
+        #         train_batch_size=args.train_batch_size,
+        #         eval_batch_size=args.eval_batch_size,
+        #         is_worse_format=False
+        #     )
+        #     accelerator.print("Loading WordNet TargetKG done.")
+        # elif args.kg_type == 'conceptnet':
+        #     accelerator.print("Loading ConceptNet TargetKG...")
+        #     targetkg_train_loader, targetkg_val_loader = load_conceptnet(
+        #         targetkg_name=args.targetkg_name, 
+        #         lm=args.lm,
+        #         train_batch_size=args.train_batch_size,
+        #         eval_batch_size=args.eval_batch_size,
+        #         is_controlkg=False,
+        #         is_csqa=args.is_csqa
+        #     )
+        #     accelerator.print("Loading ConceptNet TargetKG done.")
+        
+        # ########################################################################
+        # # 2) ControlKG loading
+        # ########################################################################
+        # accelerator.print("-" * 50)
+        # if args.kg_type == "wordnet":
+        #     accelerator.print("Loading WordNet ControlKG...")
+        #     controlkg_train_loader, controlkg_val_loader = load_wordnet_controlkg(
+        #         lm=args.lm,
+        #         train_batch_size=args.train_batch_size,
+        #         eval_batch_size=args.eval_batch_size,
+        #         is_worse_format=False
+        #     )
+        #     accelerator.print("Loading WordNet ControlKG done.")
+        # elif args.kg_type == "conceptnet":
+        #     accelerator.print("Loading ConceptNet ControlKG...")
+        #     controlkg_train_loader, controlkg_val_loader = load_conceptnet(
+        #         targetkg_name=args.targetkg_name, 
+        #         lm=args.lm,
+        #         train_batch_size=args.train_batch_size,
+        #         eval_batch_size=args.eval_batch_size,
+        #         is_controlkg=True,
+        #         is_csqa=args.is_csqa
+        #     )
+        #     accelerator.print("Loading ConceptNet ControlKG done.")
+            
+        # ########################################################################
+        # # 3) ControlLM loading
+        # ########################################################################
+        # accelerator.print("-" * 50)
+        # accelerator.print("Loading wikitext2 as ControlLM...")
+        # controllm_train_loader, controllm_val_loader = load_wikitext2_dataloader(
+        #     lm_name=args.lm,
+        #     block_size=512,
+        #     # mlm_probability=0.15,
+        #     val_num=args.controllm_eval_batch_size,
+        #     train_batch_size=args.controllm_train_batch_size, 
+        #     eval_batch_size=args.controllm_eval_batch_size
+        # )
+        # accelerator.print("Loading ControlLM done.")
 
         ########################################################################
         # 4) Log datasets
@@ -120,33 +133,35 @@ def data_loading(args, accelerator=None):
         accelerator.print("-" * 50)
         accelerator.print("Logging dataset for quality check...")
         for dataset_name, dataloader in [
-            ("targetkg-train", targetkg_train_loader),
-            ("targetkg-val", targetkg_val_loader),
-            ("controlkg-train", controlkg_train_loader),
-            ("controlkg-val", controlkg_val_loader),
-            ("controllm-train", controllm_train_loader),
-            ("controllm-val", controllm_val_loader),
-
+            # ("targetkg-train", targetkg_train_loader),
+            # ("targetkg-val", targetkg_val_loader),
+            # ("controlkg-train", controlkg_train_loader),
+            # ("controlkg-val", controlkg_val_loader),
+            # ("controllm-train", controllm_train_loader),
+            # ("controllm-val", controllm_val_loader),
+            ("our-train", our_train_loader),
+            ("our-val", our_val_loader),
         ]:
             data = {}
-            if dataset_name.startswith("controllm"):
-                # if wikitext2, the dataset is a subset of a dataset, so need to do extra things
-                data = {
-                    'inputs_str': [],
-                    'labels_str': []
-                }
+            # if dataset_name.startswith("controllm"):
+            #     # if wikitext2, the dataset is a subset of a dataset, so need to do extra things
+            #     data = {
+            #         'inputs_str': [],
+            #         'labels_str': []
+            #     }
                 
-                for batch in dataloader:
-                    temp_labels = batch["labels"].clone().detach()
-                    temp_labels[temp_labels == -100] = dataloader.dataset.tokenizer.pad_token_id
-                    data['inputs_str'].extend(dataloader.dataset.dataset.tokenizer.batch_decode(batch["input_ids"].clone().detach(), skip_special_tokens=False))
-                    data['labels_str'].extend(dataloader.dataset.dataset.tokenizer.batch_decode(temp_labels, skip_special_tokens=False))
-            else:
-                dataset = dataloader.dataset
-                data = {
-                    'inputs_str': dataset.inputs_str,
-                    'labels_str': dataset.labels_str
-                }
+            #     for batch in dataloader:
+            #         temp_labels = batch["labels"].clone().detach()
+            #         temp_labels[temp_labels == -100] = dataloader.dataset.tokenizer.pad_token_id
+            #         data['inputs_str'].extend(dataloader.dataset.dataset.tokenizer.batch_decode(batch["input_ids"].clone().detach(), skip_special_tokens=False))
+            #         data['labels_str'].extend(dataloader.dataset.dataset.tokenizer.batch_decode(temp_labels, skip_special_tokens=False))
+            # else:
+            dataset = dataloader.dataset
+            data = {
+                'inputs_str': dataset.inputs_str,
+                # 'labels_str': dataset.labels_str
+                'labels_str': dataset.labels_str
+            }
             
             df = pd.DataFrame.from_dict(data)
             dataset_table = wandb.Table(dataframe=df)
@@ -165,12 +180,14 @@ def data_loading(args, accelerator=None):
             accelerator.print("Dataset loading and saving done.")
     
     return (
-        targetkg_train_loader,
-        targetkg_val_loader,
-        controlkg_train_loader,
-        controlkg_val_loader,
-        controllm_train_loader, 
-        controllm_val_loader
+        # targetkg_train_loader,
+        # targetkg_val_loader,
+        # controlkg_train_loader,
+        # controlkg_val_loader,
+        # controllm_train_loader, 
+        # controllm_val_loader
+        our_train_loader,
+        our_val_loader,
     )
 
 def main():
@@ -212,9 +229,10 @@ def main():
     print(f'args.eval_batch_size = {args.eval_batch_size}')
     # print_free_gpu_memory(device=accelerator.device)
     # [1] load lms and save if randomly masked
-    targetkg_train_loader, targetkg_val_loader, \
-        controlkg_train_loader, controlkg_val_loader, \
-        controllm_train_loader, controllm_val_loader = data_loading(args, accelerator)
+    # targetkg_train_loader, targetkg_val_loader, \
+    #     controlkg_train_loader, controlkg_val_loader, \
+    #     controllm_train_loader, controllm_val_loader = data_loading(args, accelerator)
+    our_train_loader, our_val_loader = data_loading(args, accelerator)
     
     # print_free_gpu_memory(device=accelerator.device)
     # [2] loading lang model
@@ -226,12 +244,14 @@ def main():
         last_log_dict, model = train_mask(
             args=args, 
             model=model, 
-            targetkg_train_loader=targetkg_train_loader, 
-            targetkg_val_loader=targetkg_val_loader,
-            controlkg_train_loader=controlkg_train_loader, 
-            controlkg_val_loader=controlkg_val_loader,
-            controllm_train_loader=controllm_train_loader, 
-            controllm_val_loader=controllm_val_loader,
+            # targetkg_train_loader=targetkg_train_loader, 
+            # targetkg_val_loader=targetkg_val_loader,
+            # controlkg_train_loader=controlkg_train_loader, 
+            # controlkg_val_loader=controlkg_val_loader,
+            # controllm_train_loader=controllm_train_loader, 
+            # controllm_val_loader=controllm_val_loader,
+            our_train_loader=our_train_loader, 
+            our_val_loader=our_val_loader,
             accelerator=accelerator
         )
     else:
