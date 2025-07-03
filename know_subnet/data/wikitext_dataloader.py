@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader, Subset
-from transformers import AutoTokenizer, default_data_collator
+from transformers import AutoTokenizer, default_data_collator, Qwen2Tokenizer
 import datasets
 datasets.disable_caching()
 
@@ -121,7 +121,11 @@ def load_wikitext2_dataset(
     wikitext_dataset = datasets.load_dataset("wikitext", "wikitext-2-raw-v1")
     
     # 2) Load the tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(lm_name, use_fast=True)
+    if lm_name.startswith("gpt"):
+        tokenizer = AutoTokenizer.from_pretrained(lm_name, fast=True)
+    else: # qwen2
+        lm_str = "Qwen/Qwen1.5-1.8B"  # or any valid Qwen2 model
+        tokenizer = Qwen2Tokenizer.from_pretrained(lm_str, trust_remote_code=True, fast=True)
     tokenizer.pad_token = tokenizer.eos_token
     column_names = list(wikitext_dataset["train"].features)
     
@@ -224,7 +228,11 @@ def load_wikitext2_test_dataloader(
     # print(wikitext_dataset.info.version)
     
     # 2) Load the tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(lm_name, use_fast=True)
+    if lm_name.startswith("gpt"):
+        tokenizer = AutoTokenizer.from_pretrained(lm_name, fast=True)
+    else: # qwen2
+        lm_str = "Qwen/Qwen1.5-1.8B"  # or any valid Qwen2 model
+        tokenizer = Qwen2Tokenizer.from_pretrained(lm_str, trust_remote_code=True, fast=True)
     tokenizer.pad_token = tokenizer.eos_token
     column_names = list(wikitext_dataset.features)
     

@@ -2,7 +2,7 @@ import os
 import torch
 from typing import Tuple, List
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, Qwen2Tokenizer
 
 from know_subnet.constants import PATH_DICT
 
@@ -54,8 +54,13 @@ class WordNetDataset(Dataset):
         self.inputs_str = inputs
         self.labels_str = labels
         
-        if lm.startswith("gpt"):
-            self.tokenizer = AutoTokenizer.from_pretrained(lm, fast=True)
+        if lm.startswith("gpt") or lm.startswith("qwen"):
+            if lm.startswith("gpt"):
+                self.tokenizer = AutoTokenizer.from_pretrained(lm, fast=True)
+            else: # qwen2
+                lm_str = "Qwen/Qwen1.5-1.8B"  # or any valid Qwen2 model
+                self.tokenizer = Qwen2Tokenizer.from_pretrained(lm_str, trust_remote_code=True, fast=True)
+                
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
             self.inputs = self.tokenizer(inputs, return_tensors='pt', padding=True, truncation=True)
@@ -135,8 +140,10 @@ def load_wordnet_targetkg(
     inputs = []
     labels = []
     for entry in fam_dict_list:
-        inputs.append(entry[f"best_{lm}_input"])
-        labels.append(entry[f"best_{lm}_label"])
+        # inputs.append(entry[f"best_{lm}_input"])
+        # labels.append(entry[f"best_{lm}_label"])
+        inputs.append(entry[f"best_gpt2_input"])
+        labels.append(entry[f"best_gpt2_label"])
     
     train_dataset = WordNetDataset(
         inputs=inputs, 
@@ -204,8 +211,10 @@ def load_wordnet_controlkg(
     inputs = []
     labels = []
     for entry in train_fam_dict_list:
-        inputs.append(entry[f"best_{lm}_input"])
-        labels.append(entry[f"best_{lm}_label"])
+        # inputs.append(entry[f"best_{lm}_input"])
+        # labels.append(entry[f"best_{lm}_label"])
+        inputs.append(entry[f"best_gpt2_input"])
+        labels.append(entry[f"best_gpt2_label"])
     
     train_dataset = WordNetDataset(
         inputs=inputs, 
@@ -227,8 +236,10 @@ def load_wordnet_controlkg(
     inputs = []
     labels = []
     for entry in val_fam_dict_list:
-        inputs.append(entry[f"best_{lm}_input"])
-        labels.append(entry[f"best_{lm}_label"])
+        # inputs.append(entry[f"best_{lm}_input"])
+        # labels.append(entry[f"best_{lm}_label"])
+        inputs.append(entry[f"best_gpt2_input"])
+        labels.append(entry[f"best_gpt2_label"])
 
     val_dataset = WordNetDataset(
         inputs=inputs, 

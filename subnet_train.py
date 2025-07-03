@@ -185,7 +185,7 @@ def main():
     if accelerator.is_main_process:
         wandb.login(key="bf5686948224a019c77ae421247f858cd53ddcbe")
     
-    print_free_gpu_memory(device=accelerator.device)
+    # print_free_gpu_memory(device=accelerator.device)
     # 2) Running experiments
     # [0] setting up logging + saving config
     time_start = time.time()
@@ -212,17 +212,17 @@ def main():
 
     print(f'args.train_batch_size = {args.train_batch_size}')
     print(f'args.eval_batch_size = {args.eval_batch_size}')
-    print_free_gpu_memory(device=accelerator.device)
+    # print_free_gpu_memory(device=accelerator.device)
     # [1] load lms and save if randomly masked
     targetkg_train_loader, targetkg_val_loader, \
         controlkg_train_loader, controlkg_val_loader, \
         controllm_train_loader, controllm_val_loader = data_loading(args, accelerator)
     
-    print_free_gpu_memory(device=accelerator.device)
+    # print_free_gpu_memory(device=accelerator.device)
     # [2] loading lang model
     model = load_lm(args)
 
-    print_free_gpu_memory(device=accelerator.device)
+    # print_free_gpu_memory(device=accelerator.device)
     # [3] train/test if needed
     if not args.test_full_model:
         last_log_dict, model = train_mask(

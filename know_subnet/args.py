@@ -47,7 +47,8 @@ def get_args(description='arguments for subnet_train.py main func', jupyter=Fals
     parser.add_argument(
         "--lm",
         type=str,
-        default="gpt2",
+        # default="gpt2",
+        default="qwen",
         help="name of the language model")
     parser.add_argument(
         "--use_dropout",
@@ -287,11 +288,15 @@ def get_args(description='arguments for subnet_train.py main func', jupyter=Fals
     if len(args.linear_types_to_mask) == 0:
         if args.lm.startswith("gpt2"):
             args.linear_types_to_mask = CONSTANTS["gpt2_linear_types_to_mask"]
+        if args.lm.startswith("qwen"):
+            args.linear_types_to_mask = CONSTANTS["qwen_linear_types_to_mask"]
         else:
             raise ValueError("No default linear types to mask for the given language model.")    
     if len(args.module_types_to_mask) == 0:
         if args.lm.startswith("gpt2"):
             args.module_types_to_mask = CONSTANTS["gpt2_module_types_to_mask"]
+        if args.lm.startswith("qwen"):
+            args.module_types_to_mask = CONSTANTS["qwen_module_types_to_mask"]
         else:
             raise ValueError("No default module types to mask for the given language model.")
 

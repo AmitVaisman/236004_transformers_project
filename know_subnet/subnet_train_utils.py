@@ -90,7 +90,7 @@ def test_mask(
             labels = labels[..., 1:].contiguous()
             mask = mask[..., 1:].contiguous()
         
-        print_free_gpu_memory(device=accelerator.device)
+        # print_free_gpu_memory(device=accelerator.device)
         # Compute metrics.
         top1_acc, top5_acc, top10_acc, num_masked_tokens = acc_func(logits, labels, mask)
         hf_perp = hf_perp_func(loss)

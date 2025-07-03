@@ -8,6 +8,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoConfig
+from transformers.models.qwen2.configuration_qwen2 import (
+    Qwen2Config
+)
 
 from know_subnet.lm.qwen import (
     QwenLM,
@@ -184,7 +187,7 @@ def load_lm(args: argparse.Namespace) -> nn.Module:
         nn.Module: The loaded language model.
     """
     if not args.test_full_model:
-        if args.lm.startswith('gpt2'):
+        if args.lm.startswith('qwen'):
             out_w_per_mask, in_w_per_mask = args.params
             print("Prune - (out,in)_w_per_mask: {}".format((out_w_per_mask, in_w_per_mask)))
             model = SelectivePrunedQwenLM(
@@ -201,15 +204,15 @@ def load_lm(args: argparse.Namespace) -> nn.Module:
                 verbose=args.verbose,
             )
         else:
-             raise ValueError("Could not find matching model name for {}, only GPT2 family models are supported.".format(args.lm))
+             raise ValueError("Could not find matching model name for {}, only qwen family models are supported.".format(args.lm))
     else:
-        if args.lm.startswith('gpt2'):
+        if args.lm.startswith('qwen'):
             model = QwenLM(
                 use_dropout=args.use_dropout,
                 lm_name='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B'
             )
         else:
-            raise ValueError("Could not find matching model name for {}, only GPT2 family models are supported.".format(args.lm))
+            raise ValueError("Could not find matching model name for {}, only qwen family models are supported.".format(args.lm))
         
     model.freeze_params(exclude_name_list=["mask_scores"], verbose=False)
     return model
@@ -227,7 +230,11 @@ def create_uniform_dist(tok_labels: torch.Tensor, lm_name: str) -> torch.Tensor:
     Returns:
         torch.Tensor: A tensor of shape (num_masked_labels, vocab_size) with uniform probabilities.
     """
-    config = AutoConfig.from_pretrained(lm_name)
+    if 'qwen' in lm_name:
+        lm_str = "Qwen/Qwen1.5-1.8B"
+        config = Qwen2Config.from_pretrained(lm_str)
+    else:
+        config = AutoConfig.from_pretrained(lm_name)
     mask = tok_labels != -100
     masked_labels = tok_labels[mask]
     vocab_size = config.vocab_size    
