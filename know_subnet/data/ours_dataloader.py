@@ -87,15 +87,30 @@ def load_ours(
 
     print("Train TargetKG len: ", data_len)
     
-    inputs = []
-    labels = []
-    for entry in fam_dict_list:
-        inputs.append(entry[f"question"])
-        labels.append(entry[f"only_reasoning_part"])
+    inputs_train = []
+    inputs_val = []
+    
+    labels_train = []
+    labels_val = []
+
+    train_dataset_size = int(0.8*len(fam_dict_list))
+    for entry in fam_dict_list[:train_dataset_size]:
+        inputs_train.append(entry[f"question"])
+        labels_train.append(entry[f"only_reasoning_part"])
+
+    for entry in fam_dict_list[train_dataset_size:]:
+        inputs_val.append(entry[f"question"])
+        labels_val.append(entry[f"only_reasoning_part"])
     
     train_dataset = OursDataset(
-        inputs=inputs, 
-        labels=labels,
+        inputs=inputs_train, 
+        labels=labels_train,
+        lm=lm,
+    )
+
+    val_dataset = OursDataset(
+        inputs=inputs_val, 
+        labels=labels_val,
         lm=lm,
     )
 
@@ -109,7 +124,7 @@ def load_ours(
     )
 
     val_loader = DataLoader(
-        train_dataset, 
+        val_dataset, 
         batch_size=eval_batch_size, 
         shuffle=False, 
         pin_memory=use_cuda, 

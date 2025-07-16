@@ -241,6 +241,8 @@ def main():
     # print_free_gpu_memory(device=accelerator.device)
     # [3] train/test if needed
     if not args.test_full_model:
+        csv_name = f'metrics.csv'
+        
         last_log_dict, model = train_mask(
             args=args, 
             model=model, 
@@ -252,7 +254,8 @@ def main():
             # controllm_val_loader=controllm_val_loader,
             our_train_loader=our_train_loader, 
             our_val_loader=our_val_loader,
-            accelerator=accelerator
+            accelerator=accelerator,
+            csv_name=csv_name
         )
     else:
         last_log_dict = zeroshot_log_loop(
