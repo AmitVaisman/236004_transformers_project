@@ -8,6 +8,7 @@
 *.pt
 *.gz
 know_subnet/logs/**
+logs/
 
 ## GENERAL IGNORES
 # Byte-compiled / optimized / DLL files
