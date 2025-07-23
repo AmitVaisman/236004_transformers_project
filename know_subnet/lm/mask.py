@@ -265,6 +265,7 @@ class MaskedLinear(nn.Linear):
         self.out_w_per_mask = out_w_per_mask
         self.num_heads = num_heads
         self.is_bypass_mask = False
+        self.current_mask = None
 
         assert out_features % out_w_per_mask == 0, f"{out_features} % {out_w_per_mask} != 0"
         assert in_features % in_w_per_mask == 0, f"{in_features} % {in_w_per_mask} != 0"
@@ -286,7 +287,8 @@ class MaskedLinear(nn.Linear):
         if self.is_bypass_mask:
             masked_weight = self.weight
         else:
-            masked_weight = self.produce_mask_reshaped() * self.weight
+            self.current_mask = self.produce_mask_reshaped()
+            masked_weight = self.current_mask * self.weight    
         return nn.functional.linear(x, masked_weight.to(dtype=x.dtype), self.bias)
 
     @classmethod
