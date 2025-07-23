@@ -12,6 +12,7 @@ logs/
 output.out
 run_script.sh
 subnet_train_output.out
+*.pkl
 
 ## GENERAL IGNORES
 # Byte-compiled / optimized / DLL files

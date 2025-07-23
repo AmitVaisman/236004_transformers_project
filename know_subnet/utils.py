@@ -9,7 +9,11 @@ import numpy as np
 import transformers
 from collections import OrderedDict
 from datetime import datetime
-
+from transformers.models.qwen2.modeling_qwen2 import (
+    Qwen2Attention,
+    Qwen2MLP,
+    Qwen2DecoderLayer,
+)
 
 DIR_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -242,11 +246,12 @@ def str2moduleclass(v):
         'Qwen2MLP' : Qwen2MLP,
         'Qwen2DecoderLayer' : Qwen2DecoderLayer
     }
-    v = v.lower()
-    module_class_list = []
-    for item in v.split(' '):
-        module_class_list.append(module_class_dict[item])
-    return module_class_list
+    # v = v.lower()
+    print(type(v))
+    # module_class_list = []
+    # for item in v.split(' '):
+    #     module_class_list.append()
+    return module_class_dict[v]
 
 def shuffle_dict(input_dict):
     input_dict = OrderedDict(input_dict)

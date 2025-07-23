@@ -2,6 +2,7 @@ import os
 import argparse
 from collections import OrderedDict
 from typing import Any, Dict, List, Union
+import time
 
 import numpy as np
 import torch
@@ -37,6 +38,7 @@ def partial_state_dict(
     return partial_state_dict
 
 def save_mask_scores(
+    step,
     model: nn.Module,
     log_dict: Dict[str, Union[int, float]],
     base_path: str,
@@ -52,16 +54,43 @@ def save_mask_scores(
         base_path (str): The directory where the checkpoint will be saved.
         accelerator (Any, optional): Accelerator object if available. Defaults to None.
     """
-    fname = "ckpt-step={}-sparsity={:.5f}".format(
+    fname = "ckpt-step={}-sparsity={}".format(
         int(log_dict['step']),
-        log_dict['val/targetkg-pct_binary_produced_mask_0']
+        # log_dict['val/targetkg-pct_binary_produced_mask_0']
+        str(round( time.time() ))
     )
     save_path = os.path.join(base_path, fname)
-    state = partial_state_dict(model.state_dict())
-    if accelerator is None:
-        torch.save(state, save_path)
-    else:
-        accelerator.save(state, save_path)
+    state = model.state_dict()
+    # if accelerator is None:
+    #     torch.save(state, save_path)
+    # else:
+        
+    #     accelerator.save(state, save_path)
+
+    state_dict = {}
+    scores_list = []
+    layer_nums_list = []
+    layer_type_list = []
+    for name, module in model.named_modules():
+        if module.__class__.__name__ == "MaskedLinear":
+            if hasattr(module.mask, '__dict__'):
+                
+                for attr, val in module.mask.__dict__.items():
+                    if attr.startswith("_"):
+                        if attr == '_parameters':
+                            mask_scores = val['mask_scores']
+                            layer_number = name.split('.')[3]
+                            layer_type = name.split('.')[-1]
+                            scores_list.append(mask_scores)
+                            layer_nums_list.append(layer_number)
+                            layer_type_list.append(layer_type)
+                
+    state_dict['step'] = step
+    state_dict['mask_scores'] = scores_list
+    state_dict['layer_nums'] = layer_nums_list
+    state_dict['layer_types'] = layer_type_list
+    
+    torch.save(state_dict, os.path.join(base_path, f'{int(step)}.pt'))
 
 
 def torch_load(use_cuda: bool, load_path: str) -> Any:
@@ -112,9 +141,9 @@ def load_state_dict_incomplete(
 def class_name_to_class(class_name_list: List[str]) -> List[type]:
     """Converts a list of class name strings to actual class objects."""
     class_list = []
-    for i in class_name_list:
-        class_name = i.split("'")[1].split('.')[4]
-        class_list.extend(str2moduleclass(class_name))
+    for class_name in class_name_list:
+        # class_name = i.split("'")[1].split('.')[4]
+        class_list.append(class_name)
     return class_list
 
 def load_from_checkpoint(
@@ -141,7 +170,7 @@ def load_from_checkpoint(
     """
     out_w_per_mask = config["params"][0]
     in_w_per_mask = config["params"][1]
-
+    print(out_w_per_mask, in_w_per_mask, flush=True)
     # Set default limits if not provided in config due to backward compatibility
     if ("top_limit" not in config.keys()) or ("bottom_limit" not in config.keys()):
         config["top_limit"] = -1
@@ -184,6 +213,10 @@ def load_lm(args: argparse.Namespace) -> nn.Module:
     """
     if not args.test_full_model:
         out_w_per_mask, in_w_per_mask = args.params
+        import pickle
+        # Save
+        with open("args.pkl", "wb") as f:
+            pickle.dump(args, f)
         print("Prune - (out,in)_w_per_mask: {}".format((out_w_per_mask, in_w_per_mask)))
         model = SelectivePrunedQwenLM(
             out_w_per_mask,
@@ -194,10 +227,14 @@ def load_lm(args: argparse.Namespace) -> nn.Module:
             # module_types_to_mask=args.module_types_to_mask,
             use_dropout=args.use_dropout,
             initial_mask_p=args.initial_mask_p,
+            # initial_mask_p=0.6,
             top_limit=args.top_limit,
             bottom_limit=args.bottom_limit,
             verbose=args.verbose,
         )
+        # save_path = 'test.pt'
+        # state = model.state_dict()
+        # torch.save(state, save_path)
     else:
         model = QwenLM(
             use_dropout=args.use_dropout,
