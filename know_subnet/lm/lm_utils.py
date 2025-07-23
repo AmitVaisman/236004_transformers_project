@@ -61,16 +61,17 @@ def save_mask_scores(
     )
     save_path = os.path.join(base_path, fname)
     state = model.state_dict()
-    # if accelerator is None:
-    #     torch.save(state, save_path)
-    # else:
-        
-    #     accelerator.save(state, save_path)
+    if step % 500 == 0:
+        if accelerator is None:
+            torch.save(state, save_path)
+        else:
+            accelerator.save(state, save_path)
 
     state_dict = {}
     scores_list = []
     layer_nums_list = []
     layer_type_list = []
+    layer_bin_list = []
     for name, module in model.named_modules():
         if module.__class__.__name__ == "MaskedLinear":
             if hasattr(module.mask, '__dict__'):
@@ -79,16 +80,19 @@ def save_mask_scores(
                     if attr.startswith("_"):
                         if attr == '_parameters':
                             mask_scores = val['mask_scores']
+                            curr_binary_mask = module.current_mask
                             layer_number = name.split('.')[3]
                             layer_type = name.split('.')[-1]
                             scores_list.append(mask_scores)
                             layer_nums_list.append(layer_number)
                             layer_type_list.append(layer_type)
+                            layer_bin_list.append(curr_binary_mask)
                 
     state_dict['step'] = step
     state_dict['mask_scores'] = scores_list
     state_dict['layer_nums'] = layer_nums_list
     state_dict['layer_types'] = layer_type_list
+    state_dict['layer_binary_masks'] = layer_bin_list
     
     torch.save(state_dict, os.path.join(base_path, f'{int(step)}.pt'))
 

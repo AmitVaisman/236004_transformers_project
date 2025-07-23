@@ -1013,7 +1013,7 @@ def train_mask(
             #         df.to_csv(csv_name, mode='a', header=is_first)
                 # metrics_list = []
             
-            if step % 10 == 0:
+            if step % 100 == 0:
                 log_dict = validation_log_loop(
                     epoch,
                     step,
@@ -1029,8 +1029,7 @@ def train_mask(
                 accelerator.log(log_dict)
                 # checkpointing
                 # NOTE: keep in mind that step=epoch because our dataset is small so if it gets bigger you will have to change this statement
-                if step % 10 == 0:
-                    save_mask_scores(step, model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
+                save_mask_scores(step, model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
 
     ############################################################################
     # 6) Final logging and checkpointing before finish
