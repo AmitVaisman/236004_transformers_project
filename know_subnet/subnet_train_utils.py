@@ -266,7 +266,7 @@ def validation_log_loop(
             
             labels_flat = labels.view(-1)
             
-            expression_loss += cse_loss(logits_flat, labels_flat).item()
+            expression_loss += targetkg_output.loss # cse_loss(logits_flat, labels_flat).item()
     
         expression_loss /= len(our_val_loader)
         sparsity_loss = accelerator.unwrap_model(model).compute_total_regularizer()
@@ -771,6 +771,7 @@ def train_mask(
             our_val_loader,
             accelerator
         )
+    del cse_loss
     
     ############################################################################
     # 2) Zeroshot eval: on init mask prior to updates
@@ -840,7 +841,7 @@ def train_mask(
             targetkg_logits = targetkg_output.logits
             logits_flat = targetkg_logits.view(-1, targetkg_logits.shape[-1])  # [batch_size * seq_len, vocab_size]
             labels_flat = labels.view(-1)  # [batch_size * seq_len]
-            expression_loss = cse_loss(logits_flat, labels_flat)
+            expression_loss = targetkg_output.loss # cse_loss(logits_flat, labels_flat)
             accelerator.print("expression_loss:".ljust(15), expression_loss)
             accelerator.backward(expression_loss)
 
@@ -1028,8 +1029,8 @@ def train_mask(
                 accelerator.log(log_dict)
                 # checkpointing
                 # NOTE: keep in mind that step=epoch because our dataset is small so if it gets bigger you will have to change this statement
-                if step % args.save_checkpoint_every == 0:
-                    save_mask_scores(model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
+                if step % 10 == 0:
+                    save_mask_scores(step, model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
 
     ############################################################################
     # 6) Final logging and checkpointing before finish
