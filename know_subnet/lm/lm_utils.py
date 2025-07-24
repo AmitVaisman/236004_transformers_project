@@ -40,8 +40,8 @@ def partial_state_dict(
 def save_mask_scores(
     step,
     model: nn.Module,
-    log_dict: Dict[str, Union[int, float]],
     base_path: str,
+    is_train: bool,
     accelerator: Any = None
 ):
     """
@@ -54,14 +54,13 @@ def save_mask_scores(
         base_path (str): The directory where the checkpoint will be saved.
         accelerator (Any, optional): Accelerator object if available. Defaults to None.
     """
-    fname = "ckpt-step={}-sparsity={}".format(
-        int(log_dict['step']),
+    fname = "ckpt-step={}.pt".format(
+        int(step),
         # log_dict['val/targetkg-pct_binary_produced_mask_0']
-        str(round( time.time() ))
     )
     save_path = os.path.join(base_path, fname)
     state = model.state_dict()
-    if step % 500 == 0:
+    if step % 500 == 0 and not is_train:
         if accelerator is None:
             torch.save(state, save_path)
         else:
@@ -79,7 +78,7 @@ def save_mask_scores(
                 for attr, val in module.mask.__dict__.items():
                     if attr.startswith("_"):
                         if attr == '_parameters':
-                            mask_scores = val['mask_scores']
+                            mask_scores = torch.sigmoid(val['mask_scores']).detach().mean().item()
                             curr_binary_mask = module.current_mask
                             layer_number = name.split('.')[3]
                             layer_type = name.split('.')[-1]
@@ -94,7 +93,8 @@ def save_mask_scores(
     state_dict['layer_types'] = layer_type_list
     state_dict['layer_binary_masks'] = layer_bin_list
     
-    torch.save(state_dict, os.path.join(base_path, f'{int(step)}.pt'))
+    mode_str = 'train' if is_train else 'val'
+    torch.save(state_dict, os.path.join(base_path, f'{mode_str}_{int(step)}.pt'))
 
 
 def torch_load(use_cuda: bool, load_path: str) -> Any:

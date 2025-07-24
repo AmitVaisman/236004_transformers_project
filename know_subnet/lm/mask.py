@@ -289,6 +289,7 @@ class MaskedLinear(nn.Linear):
         else:
             self.current_mask = self.produce_mask_reshaped()
             masked_weight = self.current_mask * self.weight    
+            self.current_mask = self.current_mask.detach().mean().item()
         return nn.functional.linear(x, masked_weight.to(dtype=x.dtype), self.bias)
 
     @classmethod
