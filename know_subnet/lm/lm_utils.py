@@ -60,7 +60,7 @@ def save_mask_scores(
     )
     save_path = os.path.join(base_path, fname)
     state = model.state_dict()
-    if step % 500 == 0 and not is_train:
+    if step % 5000 == 0 and not is_train:
         if accelerator is None:
             torch.save(state, save_path)
         else:

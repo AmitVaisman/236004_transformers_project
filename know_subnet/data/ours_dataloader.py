@@ -78,6 +78,7 @@ def load_ours(
         lm: str,
         train_batch_size: int,
         eval_batch_size: int,
+        reasoning_train: bool = True,
         use_cuda: bool = True,
     ) -> Tuple[DataLoader, DataLoader]:
     fam_dict_list = []
@@ -95,12 +96,24 @@ def load_ours(
 
     train_dataset_size = int(0.8*len(fam_dict_list))
     for entry in fam_dict_list[:train_dataset_size]:
-        inputs_train.append(entry[f"question"])
-        labels_train.append(entry[f"only_reasoning_part"])
+        reasoning_part =  f'{entry[f"only_reasoning_part"]}\n</think>\n\n'
+        if reasoning_train:  
+            inputs_train.append(entry[f"question"])
+            labels_train.append(reasoning_part)
+        else:  # final answer training
+            question_and_reasoning = f"{entry[f'question']}\n{reasoning_part}"
+            inputs_train.append(question_and_reasoning)
+            labels_train.append(entry[f"only_answer_part"])
 
     for entry in fam_dict_list[train_dataset_size:]:
-        inputs_val.append(entry[f"question"])
-        labels_val.append(entry[f"only_reasoning_part"])
+        reasoning_part =  f'{entry[f"only_reasoning_part"]}\n</think>\n\n'
+        if reasoning_train:  
+            inputs_val.append(entry[f"question"])
+            labels_val.append(reasoning_part)
+        else:  # final answer training
+            question_and_reasoning = f"{entry[f'question']}\n{reasoning_part}"
+            inputs_val.append(question_and_reasoning)
+            labels_val.append(entry[f"only_answer_part"])
     
     train_dataset = OursDataset(
         inputs=inputs_train, 

@@ -17,7 +17,7 @@ HYPERPARAMS = {
     "mask_learning_rate": 0.2,
     "train_batch_size": 5, 
     "eval_batch_size": 5,
-    "train_epoch": 10,
+    "train_epoch": 20,
     "lr_warmup_frac": 0.1,
     "log_step": 100,
     "save_checkpoint_every" : 200,
