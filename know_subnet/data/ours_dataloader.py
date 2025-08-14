@@ -78,7 +78,7 @@ def load_ours(
         lm: str,
         train_batch_size: int,
         eval_batch_size: int,
-        reasoning_train: bool = True,
+        reasoning_train: bool = False,
         use_cuda: bool = True,
     ) -> Tuple[DataLoader, DataLoader]:
     fam_dict_list = []

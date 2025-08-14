@@ -76,6 +76,11 @@ def get_args(description='arguments for subnet_train.py main func', jupyter=Fals
         type=str,
         default="",
         help="date of the experiment, will be filled if nothing is passed")
+    parser.add_argument(
+        "--reasoning_train",
+        type=str2bool,
+        default=False,
+        help="True if training on reasoning part, False if training on final answer")
     
     #######################################################################
     # 2) basic hyperparam options for training and optimization
