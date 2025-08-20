@@ -54,7 +54,6 @@ def test_mask(
         # Extract and detach inputs.
         input_ids = batch['input_ids'].detach()
         attention_mask = batch['attention_mask'].detach()
-        # labels = batch['labels'].detach()
         labels = batch['input_ids'].detach()
         # mask = labels != -100
         
@@ -69,12 +68,10 @@ def test_mask(
         loss = output.loss.detach()
         logits = output.logits.detach()
         labels = labels.detach()
-        # mask = mask.detach()
         if accelerator is None:
             loss = output.loss.cpu()
             logits = output.logits.cpu()
             labels = labels.cpu()
-            # mask = mask.cpu()
 
         # If using accelerator, gather the outputs.
         if accelerator is not None:
@@ -82,14 +79,11 @@ def test_mask(
             loss = torch.mean(loss)
             logits = accelerator.gather(logits)
             labels = accelerator.gather(labels)
-            # mask = accelerator.gather(mask)
 
         # Adjust outputs for autoregressive model by shifting.
         logits = logits[..., :-1, :].contiguous()
         labels = labels[..., 1:].contiguous()
-        # mask = mask[..., 1:].contiguous()
         
-        # print_free_gpu_memory(device=accelerator.device)
         # Compute metrics.
         top1_acc, top5_acc, top10_acc, num_masked_tokens = acc_func(logits, labels) # mask
         hf_perp = hf_perp_func(loss)
@@ -142,9 +136,6 @@ def test_mask(
 @torch.no_grad()
 def zeroshot_log_loop(
     model,
-    # targetkg_val_loader,
-    # controllm_val_loader,
-    # controlkg_val_loader,
     our_val_loader,
     lm_name,
     epoch=0,
@@ -163,9 +154,6 @@ def zeroshot_log_loop(
     
     # Define the loaders and their corresponding prefixes.
     loaders_and_prefixes = [
-        # (targetkg_val_loader, 'targetkg'),
-        # (controlkg_val_loader, 'controlkg'),
-        # (controllm_val_loader, 'controllm')
         (our_val_loader, 'ours')
     ]
     
@@ -199,12 +187,7 @@ def train_log(
         step,
         processed,
         expression_loss,
-        # controllm_loss, 
-        # controlkg_loss,
-        # targetkg_loss,
-        # clr_combined_loss,
         clr_params,
-        lr_ratio,
         reg,
         lambda_reg,
         optimizer,
@@ -217,9 +200,7 @@ def train_log(
 
     log_dict = {
         'epoch': epoch,
-        'step': step,
-        
-        'train/lr_ratio': lr_ratio,
+        'step': step,        
         'train/reg_val': reg,
         'train/lambda_reg': lambda_reg,
         'train/lambda_reg_*_reg_val': lambda_reg_log,
@@ -241,13 +222,6 @@ def validation_log_loop(
     accelerator
 ):
     model.eval()
-
-    # 1) Define the three validation passes.
-    # loaders_and_prefixes = [
-    #     ("targetkg-",    our_val_loader, True),
-    #     # ("controllm-",   controllm_val_loader, False),
-    #     # ("controlkg-",   controlkg_val_loader, False),
-    # ]
     
     with torch.no_grad():
         cse_loss = torch.nn.CrossEntropyLoss(reduction='mean')
@@ -258,70 +232,19 @@ def validation_log_loop(
             input_ids = batch['input_ids']
             attention_mask = batch['attention_mask']
             labels = batch['input_ids']
-            batch_size = input_ids.shape[0]
             
             targetkg_output = model(input_ids, attention_mask=attention_mask, labels=labels)
-            targetkg_logits = targetkg_output.logits
-            logits_flat = targetkg_logits.view(-1, targetkg_logits.shape[-1])  # [batch_size * 
-            
-            labels_flat = labels.view(-1)
-            
-            expression_loss += targetkg_output.loss # cse_loss(logits_flat, labels_flat).item()
+            expression_loss += targetkg_output.loss 
     
         expression_loss /= len(our_val_loader)
         sparsity_loss = accelerator.unwrap_model(model).compute_total_regularizer()
             
-    
         log_dict = {
             'epoch' : epoch,
             'step' : step,
             'val/expression_loss' : expression_loss,
             'val/sparsity_loss' : sparsity_loss
         }
-
-    # 2) Run the normal passes
-    # for prefix, loader, do_sparsity in loaders_and_prefixes:
-    #     prefix = f"val/{prefix}"
-    #     metrics = test_mask(
-    #         model=model,
-    #         dataset_loader=loader,
-    #         lm_name=DEEP_SEEK_MODEL,
-    #         do_sparsity_calc=do_sparsity,
-    #         accelerator=accelerator
-    #     )
-    #     metrics = {prefix + k: v for k, v in metrics.items()}
-    #     log_dict.update(metrics)
-
-    # 3) If any of the include_* flags is set, run inverse-mask passes
-    # if (
-    #     args.include_controllm_loss
-    #     or args.include_controlkg_loss
-    #     or args.include_targetkg_suppression_loss
-    # ):
-    #     # flip on inverse mask
-    #     if accelerator is None:
-    #         model.set_is_inverse_mask(is_inverse_mask=True)
-    #     else:
-    #         accelerator.unwrap_model(model).set_is_inverse_mask(is_inverse_mask=True)
-
-    #     # run the same three jobs, but with an "inverse-" prefix on each
-    #     for prefix, loader, do_sparsity in loaders_and_prefixes:
-    #         inv_prefix = f"val/inverse-{prefix}"
-    #         metrics = test_mask(
-    #             model=model,
-    #             dataset_loader=loader,
-    #             lm_name=DEEP_SEEK_MODEL,
-    #             do_sparsity_calc=do_sparsity,
-    #             accelerator=accelerator
-    #         )
-    #         metrics = {inv_prefix + k: v for k, v in metrics.items()}
-    #         log_dict.update(metrics)
-
-    #     # flip back
-    #     if accelerator is None:
-    #         model.set_is_inverse_mask(is_inverse_mask=False)
-    #     else:
-    #         accelerator.unwrap_model(model).set_is_inverse_mask(is_inverse_mask=False)
 
     return log_dict
 
@@ -374,139 +297,6 @@ def set_clr_scheduler(args, accelerator):
         clr_params.schedule_lists["lambda_inverse_mask_controllm"] = [args.lambda_inverse_mask_controllm] * args.train_epoch
         clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = [args.lambda_inverse_mask_controlkg] * args.train_epoch
         clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = [args.lambda_inverse_mask_targetkg] * args.train_epoch
-
-    # elif args.lambda_scheduler == "piecewise1":
-    #     milestone1epoch = 1
-    #     milestone2epoch = int((1.0 * args.train_epoch) / 4.0)
-    #     milestone3epoch = int((2.0 * args.train_epoch) / 4.0)
-    #     milestone4epoch = args.train_epoch
-
-    #     milestones_values = [(milestone1epoch, 1.0), (milestone2epoch, 0.8), (milestone3epoch, 0.5), (milestone4epoch, 0.5)]
-    #     param_values = np.array(PiecewiseLinear.simulate_values(
-    #         num_events=args.train_epoch,
-    #         optimizer=clr_params, 
-    #         param_name="lambda_targetkg_expression", 
-    #         milestones_values=milestones_values
-    #     ))[:,1]
-    #     inverse_mask_param_values = [(1 - l) * (1.0/3) for l in param_values]
-    #     clr_params.schedule_lists["lambda_targetkg_expression"] = param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controllm"]  = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = inverse_mask_param_values
-    
-    # elif args.lambda_scheduler == "piecewise2":
-    #     milestone1epoch = 1
-    #     milestone2epoch = int((1.0 * args.train_epoch) / 4.0)
-    #     milestone3epoch = int((2.0 * args.train_epoch) / 4.0)
-    #     milestone4epoch = args.train_epoch
-
-    #     milestones_values = [(milestone1epoch, 1.0), (milestone2epoch, 0.8), (milestone3epoch, 0.5), (milestone4epoch, 0.5)]
-    #     param_values = np.array(PiecewiseLinear.simulate_values(
-    #         num_events=args.train_epoch,
-    #         optimizer=clr_params, 
-    #         param_name="lambda_targetkg_expression", 
-    #         milestones_values=milestones_values
-    #     ))[:,1]
-    #     mask_param_values = [1 - l for l in param_values]
-    #     inverse_mask_param_values = [l * (1.0/3) for l in param_values]
-    #     clr_params.schedule_lists["lambda_targetkg_expression"] = mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controllm"] = inverse_mask_param_values 
-    #     clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = inverse_mask_param_values
-
-    # elif args.lambda_scheduler == "piecewise2.5":
-    #     milestone1epoch = 1
-    #     milestone2epoch = int((1.0 * args.train_epoch) / 4.0)
-    #     milestone3epoch = int((2.0 * args.train_epoch) / 4.0)
-    #     milestone4epoch = int((5.0 * args.train_epoch) / 8.0)
-    #     milestone5epoch = int((3.0 * args.train_epoch) / 4.0)
-    #     milestone6epoch = args.train_epoch
-
-    #     milestones_values = [(milestone1epoch, 1.0), (milestone2epoch, 0.8), (milestone3epoch, 0.5), (milestone4epoch, 0.25), (milestone5epoch, 0.5), (milestone6epoch, 0.5)]
-    #     param_values = np.array(PiecewiseLinear.simulate_values(
-    #         num_events=args.train_epoch,
-    #         optimizer=clr_params, 
-    #         param_name="lambda_targetkg_expression", 
-    #         milestones_values=milestones_values
-    #     ))[:,1]
-    #     mask_param_values = [(1 - l) * 0.5 for l in param_values]
-    #     inverse_mask_param_values = [l * 0.5 for l in param_values]
-    #     #
-    #     clr_params.schedule_lists["lambda_targetkg_expression"] = mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = mask_param_values
-    #     #
-    #     clr_params.schedule_lists["lambda_inverse_mask_controllm"] = inverse_mask_param_values 
-    #     clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = inverse_mask_param_values
-
-    # elif args.lambda_scheduler == "piecewise3equal":
-    #     milestone1epoch = 1
-    #     milestone2epoch = int((2.0 * args.train_epoch) / 8.0)
-    #     milestone3epoch = int((4.0 * args.train_epoch) / 8.0)
-    #     milestone4epoch = args.train_epoch
-
-    #     milestones_values = [(milestone1epoch, 1.0), (milestone2epoch, 0.8), (milestone3epoch, 0.5), (milestone4epoch, 0.5)]
-    #     param_values = np.array(PiecewiseLinear.simulate_values(
-    #         num_events=args.train_epoch,
-    #         optimizer=clr_params, 
-    #         param_name="lambda_targetkg_expression", 
-    #         milestones_values=milestones_values
-    #     ))[:,1]
-    #     inverse_mask_param_values = [(1 - l) for l in param_values] # NOTE: difference is that the inverse mask losses are of equal importance as the other one
-    #     clr_params.schedule_lists["lambda_targetkg_expression"] = param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controllm"]  = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = inverse_mask_param_values
-
-    # elif args.lambda_scheduler == "linearcyclical1":
-    #     # NOTE: Linearly adjusts param value to 'end_value' for a half-cycle, 
-    #     #       then linearly adjusts it back to 'start_value' for a half-cycle.
-    #     param_values = np.array(LinearCyclicalScheduler.simulate_values(
-    #         num_events=args.train_epoch,
-    #         optimizer=clr_params, 
-    #         param_name="lambda_targetkg_expression",
-    #         start_value=0.8,
-    #         end_value=0.2,
-    #         cycle_size=500, # NOTE: we could play with this
-    #     ))[:,1]
-    #     inverse_mask_param_values = [(1 - l) * (1.0/3) for l in param_values]
-    #     clr_params.schedule_lists["lambda_targetkg_expression"] = param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controllm"]  = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = inverse_mask_param_values
-
-    # elif args.lambda_scheduler == "linearcyclical2":
-    #     # NOTE: Linearly adjusts param value to 'end_value' for a half-cycle, 
-    #     #       then linearly adjusts it back to 'start_value' for a half-cycle.
-    #     param_values = np.array(LinearCyclicalScheduler.simulate_values(
-    #         num_events=args.train_epoch,
-    #         optimizer=clr_params, 
-    #         param_name="lambda_targetkg_expression",
-    #         start_value=1.0,
-    #         end_value=0.0,
-    #         cycle_size=500, # NOTE: we could play with this
-    #     ))[:,1]
-    #     inverse_mask_param_values = [(1 - l) * (1.0/3) for l in param_values]
-    #     clr_params.schedule_lists["lambda_targetkg_expression"] = param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controllm"]  = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = inverse_mask_param_values
-
-    # elif args.lambda_scheduler == "linearcyclical3equal":
-    #     # NOTE: Linearly adjusts param value to 'end_value' for a half-cycle, 
-    #     #       then linearly adjusts it back to 'start_value' for a half-cycle.
-    #     param_values = np.array(LinearCyclicalScheduler.simulate_values(
-    #         num_events=args.train_epoch,
-    #         optimizer=clr_params, 
-    #         param_name="lambda_targetkg_expression",
-    #         start_value=0.9,
-    #         end_value=0.1,
-    #         cycle_size=500, # NOTE: we could play with this
-    #     ))[:,1]
-    #     inverse_mask_param_values = [(1 - l) for l in param_values]
-    #     clr_params.schedule_lists["lambda_targetkg_expression"] = param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controllm"]  = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_controlkg"] = inverse_mask_param_values
-    #     clr_params.schedule_lists["lambda_inverse_mask_targetkg"] = inverse_mask_param_values
     
     # regularization scheduler
     milestone1epoch = 1
@@ -534,12 +324,6 @@ def set_clr_scheduler(args, accelerator):
 def initialize_training_components(
         args, 
         model, 
-        # targetkg_train_loader, 
-        # targetkg_val_loader,
-        # controlkg_train_loader, 
-        # controlkg_val_loader,
-        # controllm_train_loader, 
-        # controllm_val_loader,
         our_train_loader, 
         our_val_loader,
         accelerator
@@ -569,19 +353,12 @@ def initialize_training_components(
         lr = args.mask_lr)
 
     # 4) Setup the learning rate scheduler
-    # total_warmup_steps = len(targetkg_train_loader) * args.train_epoch * args.lr_warmup_frac
     total_warmup_steps = len(our_train_loader) * args.train_epoch * args.lr_warmup_frac
     lr_scheduler  = torch.optim.lr_scheduler.LinearLR(
         optimizer, start_factor=1e-10, end_factor=1.0, 
         total_iters=total_warmup_steps, last_epoch=-1)
 
-    # 5) Setup KL Div Loss
-    # NOTE: log_target=False means that 
-    #       - input logits should be log_softmax-ed
-    #       - target logits should be softmax-ed
-    # kl_loss = torch.nn.KLDivLoss(size_average=None, reduce=None, reduction='batchmean', log_target=False)
-
-    # Setup CE loss
+    # 5) Setup CE loss
     cse_loss = torch.nn.CrossEntropyLoss(reduction='mean')
 
     # 6) Create schedulers for multi-objective loss lambda weighing
@@ -593,13 +370,6 @@ def initialize_training_components(
     
     # 8) Prepare (for accelerate) dataloaders
     if accelerator is not None:
-        # targetkg_train_loader, targetkg_val_loader, \
-        #     controlkg_train_loader, controlkg_val_loader, \
-        #     controllm_train_loader, controllm_val_loader = accelerator.prepare(
-        #         targetkg_train_loader, targetkg_val_loader, \
-        #         controlkg_train_loader, controlkg_val_loader, \
-        #         controllm_train_loader, controllm_val_loader
-        #     )
         our_train_loader, our_val_loader = accelerator.prepare(
             our_train_loader, our_val_loader
         )
@@ -618,16 +388,9 @@ def initialize_training_components(
         model, 
         optimizer, 
         lr_scheduler, 
-        # kl_loss, 
         cse_loss,
         clr_params, 
         mask_params,
-        # targetkg_train_loader, 
-        # targetkg_val_loader, 
-        # controlkg_train_loader,
-        # controlkg_val_loader,
-        # controllm_train_loader,
-        # controllm_val_loader
         our_train_loader,
         our_val_loader
     )
@@ -749,12 +512,6 @@ def combine_losses(accelerator, losses, clr_params, expression_loss=None):
 def train_mask(
         args, 
         model, 
-        # targetkg_train_loader, 
-        # targetkg_val_loader,
-        # controlkg_train_loader=None, 
-        # controlkg_val_loader=None,
-        # controllm_train_loader=None, 
-        # controllm_val_loader=None,
         our_train_loader, 
         our_val_loader,
         accelerator=None,
@@ -803,11 +560,7 @@ def train_mask(
     if args.verbose:
         epoch_loop = tqdm(range(1, args.train_epoch + 1), desc='epoch', leave=False, position=0)
     else:
-        epoch_loop = range(1, args.train_epoch + 1)
-    # if args.include_controllm_loss:
-    #     controllm_loop = mycycle(controllm_train_loader)
-    # if args.include_controlkg_loss:
-    #     controlkg_loop = mycycle(controlkg_train_loader)    
+        epoch_loop = range(1, args.train_epoch + 1) 
     
     ############################################################################
     # 5) Main train loop
@@ -827,21 +580,14 @@ def train_mask(
 
             input_ids = batch['input_ids']
             attention_mask = batch['attention_mask']
-            # labels = batch['labels']
             labels = batch['input_ids']
             # mask = labels != -100
-            
-            # print(input_ids, labels)
-            
-            # uniform_kl_dist = batch['uniform_kl']
+                        
             batch_size = input_ids.shape[0]
 
             # ours ---
             targetkg_output = model(input_ids, attention_mask=attention_mask, labels=labels)
-            targetkg_logits = targetkg_output.logits
-            logits_flat = targetkg_logits.view(-1, targetkg_logits.shape[-1])  # [batch_size * seq_len, vocab_size]
-            labels_flat = labels.view(-1)  # [batch_size * seq_len]
-            expression_loss = targetkg_output.loss # cse_loss(logits_flat, labels_flat)
+            expression_loss = targetkg_output.loss
             accelerator.print("expression_loss:".ljust(15), expression_loss)
             accelerator.backward(expression_loss)
 
@@ -854,105 +600,6 @@ def train_mask(
             # backward pass only on sparsity regularization loss
             accelerator.backward(lam_reg * reg)
             # --- 
-
-            # assert False
-
-            ####################################################################
-            # 1) Expression Loss
-            # if not args.exclude_targetkg_expression_loss:
-            #     output = model(input_ids, attention_mask=attention_mask, labels=labels)
-            #     expression_loss = output.loss
-            #     del output
-            
-            ####################################################################
-            # 2) Inverse Mask Losses 
-            # if any([args.include_controllm_loss,
-            #         args.include_controlkg_loss,
-            #         args.include_targetkg_suppression_loss]):
-            #     # inverse the mask
-            #     unwrapped_model = accelerator.unwrap_model(model)
-            #     unwrapped_model.set_is_inverse_mask(is_inverse_mask=True)
-
-            #     inverse_losses = {}
-                
-                # # 2.1) ControlLM maintenance pass on inverse mask
-                # if args.include_controllm_loss:
-                #     inverse_losses["controllm"] = compute_controllm_loss(
-                #         model, 
-                #         full_model, 
-                #         controllm_loop, 
-                #         kl_loss
-                #     )
-
-                # # 2.2) ControlKG maintenance pass on inverse mask
-                # if args.include_controlkg_loss:
-                #     inverse_losses["controlkg"] = compute_controlkg_loss(
-                #         model, 
-                #         full_model, 
-                #         controlkg_loop, 
-                #         kl_loss
-                #     )
-
-                # 2.3) TargetKG suppression pass on inverse mask
-                # if args.include_targetkg_suppression_loss:
-                #     targetkg_output = model(input_ids, attention_mask=attention_mask, labels=labels)
-                #     targetkg_loss = None
-                #     targetkg_logits = targetkg_output.logits
-                #     log_probs = F.log_softmax(targetkg_logits, dim=-1)
-                #     # masked_log_probs = log_probs[mask]
-                    
-                # #     # # KL loss with uniform distribution
-                # #     # inverse_losses["targetkg"] = kl_loss(
-                # #     #     input = masked_log_probs,
-                # #     #     target = uniform_kl_dist
-                # #     # )
-
-                # #     # CE loss
-                # #     print(f"TargetKG logits shape: {targetkg_logits.shape}, labels shape: {labels.shape}")
-                #     inverse_losses["targetkg"] = cse_loss(
-                #         input = targetkg_logits.view(-1, targetkg_logits.shape[-1]),
-                #         target = labels.view(-1)
-                #     )
-                #     print(f'inverse_losses["targetkg"] = {inverse_losses["targetkg"]}')
-
-                #     del targetkg_output
-                #     del targetkg_logits
-                #     del input_ids
-                #     del attention_mask
-                #     del labels
-
-                # # set mask back to normal
-                # unwrapped_model.set_is_inverse_mask(is_inverse_mask=False)
-                
-                # clr_combined_loss = inverse_losses["targetkg"]
-                # # clr_combined_loss = combine_losses(
-                # #     accelerator, 
-                # #     inverse_losses, 
-                # #     clr_params, 
-                # #     expression_loss if not args.exclude_targetkg_expression_loss else None
-                # # )
-                
-                # # backward pass on combined loss
-                # accelerator.backward(clr_combined_loss)
-                
-            # else:
-            #     if not args.exclude_targetkg_expression_loss:
-            #         lam_expr = clr_params.param_groups["lambda_targetkg_expression"]
-            #         accelerator.print("Masked TARGETKG loss:", expression_loss)
-            #         accelerator.print("Lambda x Masked TARGETKG loss:", lam_expr * expression_loss)
-            #         accelerator.print(sep)
-            #         # backward pass only on expression loss
-            #         accelerator.backward(lam_expr * expression_loss)
-                
-            ####################################################################
-            # # 3) Sparsity Regularization Loss
-            # reg = accelerator.unwrap_model(model).compute_total_regularizer()
-            # lam_reg = clr_params.param_groups["lambda_reg"]
-            # accelerator.print("Sparsity Reg:".ljust(15), reg)
-            # accelerator.print("Lambda x Sparsity Reg:".ljust(15), lam_reg * reg)
-            # accelerator.print(sep)
-            # # backward pass only on sparsity regularization loss
-            # accelerator.backward(lam_reg * reg)
 
             ####################################################################
             # 4) Grad norm + Step on schedulers and optimizers
@@ -970,18 +617,10 @@ def train_mask(
             
             # detach all losses for logging
             expression_loss = expression_loss if expression_loss is None else expression_loss.detach()
-            # targetkg_loss = None if targetkg_loss is None else targetkg_loss.detach()
-            # controlkg_loss = None if controlkg_loss is None else controlkg_loss.detach()
-            # controllm_loss = None if controllm_loss is None else controllm_loss.detach()
-            # clr_combined_loss = None if clr_combined_loss is None else clr_combined_loss.detach()
             reg = None if reg is None else reg.detach()
 
             # convert to Python numbers for logging
             expression_loss_log = expression_loss if expression_loss is None else expression_loss.item()
-            # targetkg_loss_log = None if targetkg_loss is None else targetkg_loss.item()
-            # controlkg_loss_log = None if controlkg_loss is None else controlkg_loss.item()
-            # controllm_loss_log = None if controllm_loss is None else controllm_loss.item()
-            # clr_combined_loss_log = None if clr_combined_loss is None else clr_combined_loss.item()
             reg_log = None if reg is None else reg.item()
 
             # do logging or checkpointing
@@ -994,7 +633,6 @@ def train_mask(
                 processed=processed, 
                 expression_loss=expression_loss_log,
                 clr_params=clr_params,
-                lr_ratio=0.0,
                 reg=reg_log,
                 lambda_reg=clr_params.param_groups["lambda_reg"],
                 optimizer=optimizer,
@@ -1002,35 +640,22 @@ def train_mask(
             )
             
             accelerator.log(train_log_dict)
-
-            # metrics_list.append(train_log_dict)
-            # if step % 10 == 0:
-            #     df = pd.DataFrame(metrics_list)
-            #     if is_first:
-            #         df.to_csv(csv_name)
-            #         is_first = False
-            #     else:
-            #         df.to_csv(csv_name, mode='a', header=is_first)
-                # metrics_list = []
             
-            if step % 10 == 0:
+            if step % 100 == 0:
+                save_mask_scores(step, model, os.path.join(args.exper_dir, 'checkpoints'), True, accelerator=accelerator)
                 log_dict = validation_log_loop(
                     epoch,
                     step,
                     args=args,
                     model=model, 
                     log_dict=train_log_dict,
-                    # targetkg_val_loader=targetkg_val_loader,
-                    # controllm_val_loader=controllm_val_loader,
-                    # controlkg_val_loader=controlkg_val_loader,
                     our_val_loader=our_val_loader,
                     accelerator=accelerator
                 )
                 accelerator.log(log_dict)
                 # checkpointing
                 # NOTE: keep in mind that step=epoch because our dataset is small so if it gets bigger you will have to change this statement
-                if step % 10 == 0:
-                    save_mask_scores(step, model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
+                save_mask_scores(step, model, os.path.join(args.exper_dir, 'checkpoints'), False, accelerator=accelerator)
 
     ############################################################################
     # 6) Final logging and checkpointing before finish
@@ -1041,31 +666,21 @@ def train_mask(
         processed=processed, 
         expression_loss=expression_loss_log,
         clr_params=clr_params,
-        lr_ratio=0.0,
         reg=reg_log,
         lambda_reg=clr_params.param_groups["lambda_reg"],
         optimizer=optimizer,
         accelerator=accelerator
     )
-    # log_dict = validation_log_loop(
-    #     args=args,
-    #     model=model, 
-    #     log_dict=train_log_dict,
-    #     targetkg_val_loader=targetkg_val_loader,
-    #     controllm_val_loader=controllm_val_loader,
-    #     controlkg_val_loader=controlkg_val_loader,
-    #     accelerator=accelerator
-    # )
+
     log_dict = validation_log_loop(
+        epoch,
+        step,
         args=args,
         model=model, 
         log_dict=train_log_dict,
-        # targetkg_val_loader=targetkg_val_loader,
-        # controllm_val_loader=controllm_val_loader,
-        # controlkg_val_loader=controlkg_val_loader,
         our_val_loader=our_val_loader,
         accelerator=accelerator
     )
-    save_mask_scores(model, log_dict, os.path.join(args.exper_dir, 'checkpoints'), accelerator=accelerator)
+    save_mask_scores(step, model, os.path.join(args.exper_dir, 'checkpoints'), False, accelerator=accelerator)
     
     return log_dict, model

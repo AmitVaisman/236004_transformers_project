@@ -13,5 +13,5 @@ conda activate $CONDA_ENV
 #echo "Jupyter path: $(which jupyter)"
 
 # Run Jupyter
-/home/amit.vaisman/miniconda3/envs/236004_transformers_project/bin/jupyter lab --notebook-dir=./ --no-browser \
+/home/amitf/.conda/envs/subnetvenv/bin/jupyter --notebook-dir=./ --no-browser \
  --ip=$(hostname -I | cut -d " " -f1) --port-retries=100
